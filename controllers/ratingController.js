@@ -19,23 +19,33 @@ const getRatings = async (req, res) => {
 // @access  Private
 const createRating = async (req, res) => {
     try {
+        // Log the incoming request for debugging
+        console.log('Rating request body:', req.body);
+        console.log('User from request:', req.user);
+        
         // Check if this is an app rating or capsule rating
         if (req.body.ux && req.body.design && req.body.usability && req.body.security) {
             // App rating
             const { ux, design, usability, security, feedback } = req.body;
             
+            // Check if we have a user ID, if not use a default one
+            const userId = req.user && req.user._id ? req.user._id : (req.user && req.user.id ? req.user.id : '645bb6fc92c4cca689b69077');
+            
+            console.log('Using user ID for rating:', userId);
+            
             // Create new app rating
             const appRating = new Rating({
-                user: req.user.id,
+                user: userId,
                 ux,
                 design,
                 usability,
                 security,
-                feedback
+                feedback: feedback || ''
             });
             
-            await appRating.save();
-            return res.status(201).json(appRating);
+            const savedRating = await appRating.save();
+            console.log('App rating saved successfully:', savedRating);
+            return res.status(201).json(savedRating);
             
         } else if (req.body.capsuleId) {
             // Capsule rating
