@@ -31,6 +31,12 @@ const userSchema = new mongoose.Schema({
         enum: ['free', 'premium', 'vip'],
         default: 'free'
     },
+    paymentDetails: {
+        orderID: String,
+        subscriptionID: String,
+        lastPaymentDate: Date,
+        nextPaymentDate: Date
+    },
     capsuleCount: {
         type: Number,
         default: 0

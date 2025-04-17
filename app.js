@@ -13,6 +13,7 @@ const capsuleRoutes = require('./routes/capsules');
 const ratingRoutes = require('./routes/ratings');
 const statRoutes = require('./routes/stats');
 const notificationRoutes = require('./routes/notifications');
+const subscriptionRoutes = require('./routes/subscriptions');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { connectDB } = require('./config/db');
 
@@ -72,6 +73,7 @@ app.use('/api/capsules', capsuleRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/stats', statRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Error handling
 app.use(notFound);
