@@ -5,7 +5,7 @@ const generateToken = require('../utils/generateToken');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, profilePicture } = req.body;
 
     try {
         // Check if user already exists
@@ -20,6 +20,11 @@ const registerUser = async (req, res) => {
             email,
             password
         });
+
+        // Add profile picture if provided
+        if (profilePicture) {
+            user.profilePicture = profilePicture;
+        }
 
         // Hash the password
         await user.save();
