@@ -35,7 +35,30 @@ const userSchema = new mongoose.Schema({
         orderID: String,
         subscriptionID: String,
         lastPaymentDate: Date,
-        nextPaymentDate: Date
+        nextPaymentDate: Date,
+        transactions: [{
+            plan: {
+                type: String,
+                enum: ['premium', 'vip'],
+                required: true
+            },
+            orderID: String,
+            subscriptionID: String,
+            amount: Number,
+            currency: {
+                type: String,
+                default: 'USD'
+            },
+            date: {
+                type: Date,
+                default: Date.now
+            },
+            status: {
+                type: String,
+                enum: ['pending', 'completed', 'failed', 'refunded'],
+                default: 'completed'
+            }
+        }]
     },
     capsuleCount: {
         type: Number,

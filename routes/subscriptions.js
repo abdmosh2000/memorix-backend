@@ -24,16 +24,38 @@ router.post('/update', protect, async (req, res) => {
         // Update the user's subscription
         user.subscription = plan;
         
-        // Store payment details if provided
+        // Store payment details
+        user.paymentDetails = user.paymentDetails || {};
+        
+        // Update payment details if provided
         if (orderID) {
-            user.paymentDetails = user.paymentDetails || {};
             user.paymentDetails.orderID = orderID;
         }
         
         if (subscriptionID) {
-            user.paymentDetails = user.paymentDetails || {};
             user.paymentDetails.subscriptionID = subscriptionID;
         }
+        
+        // Update payment dates
+        user.paymentDetails.lastPaymentDate = new Date();
+        
+        // Set next payment date (1 month from now)
+        const nextPaymentDate = new Date();
+        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+        user.paymentDetails.nextPaymentDate = nextPaymentDate;
+        
+        // Store transaction info
+        const transaction = {
+            plan,
+            orderID: orderID || 'direct-upgrade',
+            subscriptionID: subscriptionID || 'one-time',
+            amount: plan === 'premium' ? 9.99 : plan === 'vip' ? 24.99 : 0,
+            currency: 'USD',
+            date: new Date()
+        };
+        
+        user.paymentDetails.transactions = user.paymentDetails.transactions || [];
+        user.paymentDetails.transactions.push(transaction);
         
         await user.save();
         
