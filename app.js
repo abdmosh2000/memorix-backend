@@ -33,59 +33,23 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// Configure CORS with allowed origins from config
-const allowedOrigins = config.frontend.allowedOrigins;
-
-// Helper function to check if origin matches pattern with wildcards
-const originMatchesPattern = (origin, pattern) => {
-  if (!origin || !pattern) return false;
-  
-  // Convert wildcard pattern to regex
-  // For example: https://*.memorix.fun -> ^https:\/\/.*\.memorix\.fun$
-  if (pattern.includes('*')) {
-    const regexPattern = pattern
-      .replace(/\./g, '\\.')  // Escape dots
-      .replace(/\*/g, '.*');  // Convert * to .*
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(origin);
-  }
-  
-  // Direct comparison for non-wildcard patterns
-  return origin === pattern;
-};
-
-// More permissive CORS for health endpoints
-app.use('/api/health', cors({ 
-  origin: '*', 
-  methods: ['GET', 'HEAD', 'OPTIONS'],
-  maxAge: 86400 // 24 hours
-}));
-
-// Regular CORS configuration for other routes
-app.use(cors({
+// CORS configuration - extremely permissive during development
+const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if the origin matches any of the allowed patterns
-    const isAllowed = allowedOrigins.some(pattern => 
-      originMatchesPattern(origin, pattern)
-    );
-    
-    if (!isAllowed) {
-      logger.warn(`CORS blocked request from: ${origin}`, { 
-        allowedPatterns: allowedOrigins 
-      });
-      const msg = `The CORS policy for this site does not allow access from the specified origin: ${origin}`;
-      return callback(new Error(msg), false);
-    }
-    
-    return callback(null, true);
+    // Allow all origins
+    callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+  maxAge: 86400 // 24 hours
+};
+
+// Apply CORS globally
+app.use(cors(corsOptions));
 
 // Parse JSON with increased limit for larger payloads
 const maxRequestSize = config.upload.maxSize || 10 * 1024 * 1024; // Default to 10MB
