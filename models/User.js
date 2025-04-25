@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -64,10 +65,23 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    isAdmin: {
+    role: {
+        type: String,
+        enum: ['user', 'moderator', 'content_curator', 'admin'],
+        default: 'user'
+    },
+    permissions: {
+        type: [String],
+        default: []
+    },
+    verified: {
         type: Boolean,
         default: false
     },
+    verificationToken: String,
+    verificationTokenExpires: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
     createdAt: {
         type: Date,
         default: Date.now
@@ -88,6 +102,36 @@ userSchema.pre('save', async function (next) {
 // Method to compare passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate email verification token
+userSchema.methods.createVerificationToken = function() {
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    
+    this.verificationToken = crypto
+        .createHash('sha256')
+        .update(verificationToken)
+        .digest('hex');
+        
+    // Token expires in 24 hours
+    this.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000;
+    
+    return verificationToken;
+};
+
+// Generate password reset token
+userSchema.methods.createPasswordResetToken = function() {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    this.passwordResetToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+        
+    // Token expires in 10 minutes
+    this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+    
+    return resetToken;
 };
 
 const User = mongoose.model('User', userSchema);

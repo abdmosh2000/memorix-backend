@@ -39,22 +39,86 @@ const protect = async (req, res, next) => {
     }
 };
 
-// Admin middleware
+/**
+ * Role-based access control middleware
+ * 
+ * @param {Array} roles - Array of roles that can access the route
+ * @returns {Function} Express middleware
+ */
+const checkRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+
+        if (roles.includes(req.user.role)) {
+            return next();
+        }
+
+        return res.status(403).json({ 
+            message: 'Access denied: Insufficient permissions',
+            required: roles,
+            current: req.user.role
+        });
+    };
+};
+
+// Admin middleware - Only users with admin role can access
 const admin = (req, res, next) => {
-    if (req.user && req.user.isAdmin) {
+    if (req.user && req.user.role === 'admin') {
         next();
     } else {
-        res.status(401).json({ message: 'Not authorized as admin' });
+        res.status(403).json({ message: 'Not authorized as admin' });
+    }
+};
+
+// Head Admin middleware - Only the super admin can access (abdmosh2000@gmail.com)
+const headAdmin = (req, res, next) => {
+    if (req.user && 
+        req.user.role === 'admin' && 
+        req.user.permissions.includes('super_admin')) {
+        next();
+    } else {
+        res.status(403).json({ message: 'Not authorized as head admin' });
+    }
+};
+
+// Middleware for moderator role or higher
+const moderator = (req, res, next) => {
+    const allowedRoles = ['moderator', 'content_curator', 'admin'];
+    if (req.user && allowedRoles.includes(req.user.role)) {
+        next();
+    } else {
+        res.status(403).json({ message: 'Not authorized as moderator' });
+    }
+};
+
+// Middleware for content curator role or higher
+const contentCurator = (req, res, next) => {
+    const allowedRoles = ['content_curator', 'admin'];
+    if (req.user && allowedRoles.includes(req.user.role)) {
+        next();
+    } else {
+        res.status(403).json({ message: 'Not authorized as content curator' });
     }
 };
 
 // Middleware to check if a user is an admin or the owner of a resource
 const adminOrOwner = (req, res, next) => {
-    if (req.user && (req.user.isAdmin || req.user.id === req.params.userId)) {
+    if (req.user && 
+        (req.user.role === 'admin' || req.user.id === req.params.userId)) {
         next();
     } else {
-        res.status(401).json({ message: 'Not authorized' });
+        res.status(403).json({ message: 'Not authorized' });
     }
 };
 
-module.exports = { protect, admin, adminOrOwner };
+module.exports = { 
+    protect, 
+    admin, 
+    headAdmin,
+    moderator,
+    contentCurator,
+    adminOrOwner,
+    checkRole
+};
