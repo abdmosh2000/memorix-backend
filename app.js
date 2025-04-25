@@ -54,6 +54,14 @@ const originMatchesPattern = (origin, pattern) => {
   return origin === pattern;
 };
 
+// More permissive CORS for health endpoints
+app.use('/api/health', cors({ 
+  origin: '*', 
+  methods: ['GET', 'HEAD', 'OPTIONS'],
+  maxAge: 86400 // 24 hours
+}));
+
+// Regular CORS configuration for other routes
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests)
@@ -92,13 +100,15 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://memorix.fun", "https://*.godaddysites.com"], 
+      imgSrc: ["'self'", "data:", "https://memorix.fun", "https://*.godaddysites.com", "*"], 
       connectSrc: [
         "'self'", 
         "https://api.memorix.fun", 
         "wss://api.memorix.fun",
         "https://memorix-backend-wn9o.onrender.com",
-        "https://*.godaddysites.com"
+        "https://*.memorix.fun",
+        "https://*.godaddysites.com",
+        "*"  // Allow all connections for health checks - can be restricted later
       ],
       frameSrc: ["'self'", "https://*.godaddysites.com"],
       objectSrc: ["'none'"],
