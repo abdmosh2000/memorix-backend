@@ -6,9 +6,11 @@ const { protect, admin, headAdmin, moderator, contentCurator } = require('../mid
 /**
  * Admin Dashboard Stats
  * GET /api/admin/stats - Get admin dashboard statistics
+ * GET /api/admin/dashboard-summary - Get quick overview stats for dashboard
  * Access: Private/Admin
  */
 router.get('/stats', protect, admin, adminController.getStats);
+router.get('/dashboard-summary', protect, admin, adminController.getDashboardSummary);
 
 /**
  * User Management

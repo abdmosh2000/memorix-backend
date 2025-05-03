@@ -717,3 +717,90 @@ exports.getSystemLogs = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Get dashboard summary for admin overview
+ * @route   GET /api/admin/dashboard-summary
+ * @access  Private/Admin
+ */
+exports.getDashboardSummary = async (req, res) => {
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const oneDayAgo = new Date(today);
+    oneDayAgo.setDate(today.getDate() - 1);
+    
+    const lastMonth = new Date(now);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    
+    // Get user statistics
+    const totalUsers = await User.countDocuments();
+    const newUsersToday = await User.countDocuments({
+      createdAt: { $gte: oneDayAgo }
+    });
+
+    // Get active users (mock - in production this would come from a session store)
+    const activeNow = Math.floor(Math.random() * 50) + 10;
+    
+    // Capsule statistics
+    const totalCapsules = await Capsule.countDocuments();
+    const publicCapsules = await Capsule.countDocuments({ isPublic: true });
+    const capsulesCreatedToday = await Capsule.countDocuments({
+      createdAt: { $gte: oneDayAgo }
+    });
+    
+    // Revenue information - in production would calculate from real transaction data
+    // Get all paid users
+    const premiumUsers = await User.countDocuments({ subscription: 'premium' });
+    const vipUsers = await User.countDocuments({ subscription: 'vip' });
+    
+    // Calculate monthly revenue (mockup - in production would use real transaction data)
+    const premiumPrice = 9.99;
+    const vipPrice = 24.99;
+    const monthlyRevenue = (premiumUsers * premiumPrice) + (vipUsers * vipPrice);
+    
+    // Calculate total revenue to date (mockup)
+    // In production this would be calculated from the transactions collection
+    const avgSubscriptionMonths = 3.5; // average user has been subscribed for 3.5 months
+    const totalRevenue = monthlyRevenue * avgSubscriptionMonths;
+    
+    // Calculate conversion rate
+    const conversionRate = totalUsers > 0 ? ((premiumUsers + vipUsers) / totalUsers) * 100 : 0;
+    
+    // System health metrics (mockup - in production would use real metrics)
+    const systemUptime = 99.95; // percentage
+    const avgResponseTime = Math.floor(Math.random() * 50) + 200; // between 200-250ms
+    const errorRate = (Math.random() * 0.8).toFixed(2); // between 0-0.8%
+    
+    // Return dashboard summary
+    res.json({
+      users: {
+        total: totalUsers,
+        newToday: newUsersToday,
+        activeNow: activeNow
+      },
+      capsules: {
+        total: totalCapsules,
+        public: publicCapsules,
+        createdToday: capsulesCreatedToday
+      },
+      revenue: {
+        total: totalRevenue,
+        lastMonth: monthlyRevenue,
+        conversionRate: conversionRate
+      },
+      system: {
+        responseTime: avgResponseTime,
+        errorRate: parseFloat(errorRate),
+        uptime: systemUptime
+      }
+    });
+  } catch (error) {
+    logger.error('Error retrieving dashboard summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve dashboard summary',
+      error: error.message
+    });
+  }
+};
