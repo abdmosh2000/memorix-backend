@@ -50,6 +50,19 @@ async function sendEmail(options) {
 }
 
 /**
+ * Helper function to strip HTML for plain text emails
+ * @param {string} html - HTML content
+ * @returns {string} - Plain text content
+ */
+function stripHtml(html) {
+  // Simple regex to remove HTML tags
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Send a verification email to a newly registered user
  * @param {string} email - User's email address
  * @param {string} name - User's name
@@ -132,6 +145,77 @@ async function sendPasswordResetEmail(email, name, token) {
 }
 
 /**
+ * Send a notification to recipients about a new memory capsule
+ * @param {Array<string>} recipients - Array of recipient email addresses
+ * @param {string} capsuleId - ID of the capsule
+ * @param {string} title - Title of the capsule
+ * @param {string} senderName - Name of the person who created the capsule
+ * @param {Date} releaseDate - When the capsule will be released
+ * @returns {Promise<Array>} - Array of email send results
+ */
+async function sendCapsuleInvitation(recipients, capsuleId, title, senderName, releaseDate) {
+  if (!recipients || recipients.length === 0) {
+    return [];
+  }
+  
+  // Format the release date in a readable format
+  const formattedReleaseDate = new Date(releaseDate).toLocaleDateString('en-US', {
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  const results = [];
+  
+  // Get the URL for viewing the capsule
+  const viewUrl = `${config.frontend.url}/capsules/${capsuleId}`;
+  
+  // Send an email to each recipient
+  for (const recipient of recipients) {
+    const recipientEmail = typeof recipient === 'string' ? recipient : recipient.email;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+        </div>
+        <h2 style="color: #8E44AD; text-align: center;">A Memory Has Been Shared With You!</h2>
+        <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">
+          <p style="font-size: 18px; margin: 0;">
+            <span style="display: block; font-weight: bold; margin-bottom: 5px;">${senderName}</span>
+            has included you in a time capsule memory
+          </p>
+        </div>
+        <p>This memory titled <strong>"${title}"</strong> will be revealed to you on:</p>
+        <p style="background-color: #f5f5f5; padding: 10px; text-align: center; font-size: 18px; font-weight: bold;">${formattedReleaseDate}</p>
+        <p>On the release date, you'll receive another notification with a link to access this special memory.</p>
+        <p>The sender has thoughtfully chosen to share this moment with you. We'll keep it safe until it's time for you to experience it.</p>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
+          <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
+          <p>Our address: memorix.fun</p>
+        </div>
+      </div>
+    `;
+    
+    try {
+      const result = await sendEmail({
+        to: recipientEmail,
+        subject: `${senderName} has included you in a time capsule memory!`,
+        html: html
+      });
+      results.push(result);
+    } catch (err) {
+      console.error(`Failed to send capsule invitation to ${recipientEmail}:`, err);
+      results.push({ error: err, recipient: recipientEmail });
+    }
+  }
+  
+  return results;
+}
+
+/**
  * Send a welcome email after verification
  * @param {string} email - User's email address
  * @param {string} name - User's name
@@ -173,164 +257,10 @@ async function sendWelcomeEmail(email, name) {
   });
 }
 
-/**
- * Send a gift subscription notification
- * @param {string} email - Recipient email
- * @param {string} name - Recipient name
- * @param {string} subscriptionType - Subscription plan (premium/vip)
- * @param {number} durationMonths - Duration of gift subscription in months
- * @param {string} message - Optional custom message
- * @returns {Promise<Object>} - Email send result
- */
-async function sendGiftSubscriptionEmail(email, name, subscriptionType, durationMonths, message = '') {
-  const planName = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
-  
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">You've Received a Gift!</h2>
-      <p>Hello ${name},</p>
-      <p>Congratulations! You've been gifted a <strong>${planName}</strong> subscription to Memorix for <strong>${durationMonths} ${durationMonths === 1 ? 'month' : 'months'}</strong>!</p>
-      <p>This gift includes:</p>
-      <ul>
-        ${subscriptionType === 'premium' ? `
-          <li>Multiple capsules creation</li>
-          <li>Media upload capabilities</li>
-          <li>Advanced scheduling options</li>
-        ` : `
-          <li>Unlimited capsules creation</li>
-          <li>Premium media storage</li>
-          <li>Advanced encryption & security</li>
-          <li>Priority support</li>
-        `}
-      </ul>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Start Using Your Subscription
-        </a>
-      </div>
-      <p>Your subscription has been automatically applied to your account.</p>
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: `You've received a gift subscription to Memorix!`,
-    html: html
-  });
-}
-
-/**
- * Helper function to strip HTML for plain text emails
- * @param {string} html - HTML content
- * @returns {string} - Plain text content
- */
-function stripHtml(html) {
-  // Simple regex to remove HTML tags
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Send an email notification when user role has been changed
- * @param {string} email - User's email address
- * @param {string} name - User's name
- * @param {string} role - The new role assigned to the user
- * @returns {Promise<Object>} - Email send result
- */
-async function sendRoleChangeEmail(email, name, role) {
-  const roleDisplay = role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ');
-  
-  const roleDescription = {
-    'admin': 'Full access to the administrative dashboard, user management, and all system features',
-    'moderator': 'Ability to manage content, approve items, and maintain community standards',
-    'content_curator': 'Responsibility for curating and featuring content across the platform',
-    'user': 'Standard user access for creating and managing personal content'
-  };
-  
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">Your Role Has Been Updated</h2>
-      <p>Hello ${name},</p>
-      <p>Your role at Memorix has been updated to: <strong>${roleDisplay}</strong></p>
-      <p>This role provides you with the following access:</p>
-      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <p><strong>Role Description:</strong></p>
-        <p>${roleDescription[role] || 'Standard access to Memorix features'}</p>
-      </div>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Go to Dashboard
-        </a>
-      </div>
-      <p>If you have any questions about your new permissions, please contact our support team.</p>
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: "Your Memorix Role Has Been Updated",
-    html: html
-  });
-}
-
-/**
- * Send a notification when an admin manually verifies a user's email
- * @param {string} email - User's email address
- * @param {string} name - User's name
- * @returns {Promise<Object>} - Email send result
- */
-async function sendAdminVerificationEmail(email, name) {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">Your Email Has Been Verified</h2>
-      <p>Hello ${name},</p>
-      <p>Your account email has been manually verified by a Memorix administrator.</p>
-      <p>Your account is now fully activated and you can enjoy all the features of Memorix!</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Go to Dashboard
-        </a>
-      </div>
-      <p>Thank you for being part of the Memorix community!</p>
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: "Your Memorix Account Has Been Verified",
-    html: html
-  });
-}
-
 module.exports = {
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-  sendGiftSubscriptionEmail,
-  sendRoleChangeEmail,
-  sendAdminVerificationEmail
+  sendCapsuleInvitation
 };

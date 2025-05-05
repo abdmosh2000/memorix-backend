@@ -20,10 +20,20 @@ const createCapsule = async (req, res) => {
             });
         }
         
-        // Check if user has reached their capsule limit based on subscription
-        if (user.subscription === 'free' && user.capsuleCount >= 1) {
+        // Check if user has reached their capsule limit based on subscription plan
+        const { plan_name, status } = user.subscription;
+
+        if (plan_name === 'Free' && user.capsuleCount >= 1) {
             return res.status(403).json({ 
                 message: 'Free users can only create one capsule. Please upgrade your subscription.',
+                redirectTo: '/pricing'
+            });
+        }
+        
+        // Check if subscription is expired
+        if (status === 'expired' && plan_name !== 'Free') {
+            return res.status(403).json({
+                message: 'Your subscription has expired. Please renew to continue creating capsules.',
                 redirectTo: '/pricing'
             });
         }
@@ -55,9 +65,20 @@ const createCapsule = async (req, res) => {
         user.capsuleCount += 1;
         await user.save();
 
-        // In a production app, we would send emails to all recipients here
-        // For example:
-        // sendCapsuleInvitations(formattedRecipients, capsule.id, req.user.name);
+        // Send email notifications to recipients
+        if (formattedRecipients && formattedRecipients.length > 0) {
+            const emailService = require('../utils/emailService');
+            emailService.sendCapsuleInvitation(
+                formattedRecipients.map(r => r.email), 
+                capsule._id, 
+                title, 
+                user.name, 
+                releaseDate
+            ).catch(err => {
+                console.error('Error sending capsule invitation emails:', err);
+                // Continue execution even if emails fail
+            });
+        }
 
         // Return a sanitized version (without encrypted content)
         res.status(201).json(capsule.safeVersion);
