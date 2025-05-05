@@ -182,6 +182,30 @@ const loginUser = async (req, res) => {
                 email: user.email
             });
         }
+        
+        // Migration: Convert old string subscription format to new object format
+        if (typeof user.subscription === 'string') {
+            try {
+                // Get the old subscription value before updating
+                const oldSubscriptionType = user.subscription;
+                
+                // Set the new format with plan_name based on old value
+                user.subscription = {
+                    plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                    expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
+                };
+                
+                // Save the user with the migrated subscription data
+                await user.save();
+                console.log(`Migrated user ${user.email} from old subscription format to new format`);
+            } catch (migrationError) {
+                console.error('Error migrating subscription format:', migrationError);
+                // Don't stop the login process if migration fails
+            }
+        }
 
         res.json({
             _id: user._id,
@@ -214,6 +238,31 @@ const logoutUser = async (req, res) => {
 const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
+        
+        // Migration: Convert old string subscription format to new object format
+        if (typeof user.subscription === 'string') {
+            try {
+                // Get the old subscription value before updating
+                const oldSubscriptionType = user.subscription;
+                
+                // Set the new format with plan_name based on old value
+                user.subscription = {
+                    plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                    expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
+                };
+                
+                // Save the user with the migrated subscription data
+                await user.save();
+                console.log(`Migrated user ${user.email} from old subscription format to new format during profile fetch`);
+            } catch (migrationError) {
+                console.error('Error migrating subscription format in profile fetch:', migrationError);
+                // Don't stop the profile fetch if migration fails
+            }
+        }
+        
         res.json(user);
     } catch (err) {
         console.error(err.message);
