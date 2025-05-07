@@ -42,12 +42,35 @@ async function checkReleasedCapsules() {
         for (const capsule of releasedCapsules) {
             console.log(`Processing capsule ID ${capsule._id}: "${capsule.title}"`);
             
+            // Get the decrypted content of the capsule
+            let decryptedContent = '';
+            let decryptedMediaContent = null;
+            
+            try {
+                // Get decrypted content if it exists and is encrypted
+                if (capsule.content) {
+                    decryptedContent = capsule.getDecryptedContent();
+                }
+                
+                // Get decrypted media content if it exists and is encrypted
+                if (capsule.mediaContent) {
+                    decryptedMediaContent = capsule.getDecryptedMedia();
+                }
+            } catch (error) {
+                console.error(`Error decrypting capsule content for ID ${capsule._id}:`, error);
+                decryptedContent = 'Error: Content could not be decrypted properly';
+                decryptedMediaContent = null;
+            }
+            
             // Notify capsule creator
             console.log(`Notifying creator: ${capsule.user.email}`);
             await notifyCapsuleCreator(
                 capsule.user.email, 
                 capsule.title, 
-                capsule.releaseDate
+                capsule.releaseDate,
+                decryptedContent,
+                decryptedMediaContent,
+                capsule.mediaType
             );
             
             // Notify all recipients
@@ -58,7 +81,10 @@ async function checkReleasedCapsules() {
                         recipient.email,
                         capsule.title,
                         capsule.user.name,
-                        capsule.releaseDate
+                        capsule.releaseDate,
+                        decryptedContent,
+                        decryptedMediaContent,
+                        capsule.mediaType
                     );
                 }
                 console.log(`Notified ${capsule.recipients.length} recipients`);

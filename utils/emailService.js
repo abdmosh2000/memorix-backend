@@ -75,7 +75,7 @@ async function sendVerificationEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+        <img src="${config.frontend.url}/assets/logo.png" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Verify Your Email Address</h2>
       <p>Hello ${name},</p>
@@ -116,7 +116,7 @@ async function sendPasswordResetEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+        <img src="${config.frontend.url}/assets/logo.png" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Reset Your Password</h2>
       <p>Hello ${name},</p>
@@ -257,10 +257,90 @@ async function sendWelcomeEmail(email, name) {
   });
 }
 
+/**
+ * Send a notification about a released capsule
+ * @param {string} email - Recipient's email address
+ * @param {string} subject - Email subject
+ * @param {string} capsuleTitle - Title of the capsule
+ * @param {string} creatorName - Name of the creator (optional for creator notifications)
+ * @param {Date} releaseDate - Release date of the capsule
+ * @param {string} content - Decrypted content of the capsule
+ * @param {string} mediaType - Type of media (photo, video, audio) if any
+ * @param {boolean} isCreator - Whether the recipient is the creator
+ * @returns {Promise<Object>} - Email send result
+ */
+async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, mediaType, isCreator) {
+  // Format the release date in a readable format
+  const formattedReleaseDate = new Date(releaseDate).toLocaleDateString('en-US', {
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  // Truncate content if it's very long (for email readability)
+  const truncatedContent = content && content.length > 1500 
+    ? content.substring(0, 1500) + '...(content continues in your account)' 
+    : content || 'No text content';
+  
+  let mediaSection = '';
+  if (mediaType) {
+    mediaSection = `
+      <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <p><strong>Media Content:</strong> This capsule includes ${mediaType} content that you can view by logging into your Memorix account.</p>
+      </div>
+    `;
+  }
+  
+  const creatorSection = isCreator 
+    ? `<p>Your time capsule has been released. Recipients have been notified and can now view its contents.</p>` 
+    : `<p>${creatorName} has shared a time capsule with you that has now been released.</p>`;
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+      </div>
+      <h2 style="color: #8E44AD; text-align: center;">Time Capsule Released!</h2>
+      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        <p style="font-size: 18px; margin: 0; text-align: center;">
+          <span style="display: block; font-weight: bold; margin-bottom: 5px;">"${capsuleTitle}"</span>
+          Released on ${formattedReleaseDate}
+        </p>
+      </div>
+      ${creatorSection}
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3 style="color: #333; margin-top: 0;">Capsule Content:</h3>
+        <div style="white-space: pre-wrap; font-family: Arial, sans-serif; color: #333;">
+          ${truncatedContent}
+        </div>
+      </div>
+      ${mediaSection}
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+          View Full Capsule
+        </a>
+      </div>
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
+        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
+        <p>Our address: memorix.fun</p>
+      </div>
+    </div>
+  `;
+  
+  return sendEmail({
+    to: email,
+    subject: subject,
+    html: html
+  });
+}
+
 module.exports = {
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-  sendCapsuleInvitation
+  sendCapsuleInvitation,
+  sendCapsuleReleasedNotification
 };
