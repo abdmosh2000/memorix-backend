@@ -206,27 +206,24 @@ const loginUser = async (req, res) => {
                 // Get the old subscription value before updating
                 const oldSubscriptionType = user.subscription;
                 
-                // Create a new subscription object
-                // Admins always get lifetime subscription
+                // Determine subscription details
                 const isAdmin = user.role === 'admin';
-                const newSubscription = isAdmin ? 
-                    {
-                        plan_name: 'Lifetime',
-                        subscribed_at: new Date(),
-                        payment_method: 'Manual',
-                        status: 'lifetime',
-                        expiry_date: null
-                    } : 
-                    {
-                        plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
-                        subscribed_at: new Date(),
-                        payment_method: 'None',
-                        status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
-                        expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
-                    };
+                const plan_name = isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
+                const status = isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active');
+                const expiry_date = (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                    ? null 
+                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for non-free, non-lifetime
                 
-                // Set the subscription explicitly
-                user.subscription = newSubscription;
+                // Set individual properties to match the nested structure in the User model
+                user.set('subscription', undefined); // Clear existing value
+                user.subscription = {}; // Initialize as empty object
+                
+                // Set the properties according to the schema structure
+                user.subscription.plan_name = plan_name;
+                user.subscription.subscribed_at = new Date();
+                user.subscription.payment_method = isAdmin ? 'Manual' : 'None';
+                user.subscription.status = status;
+                user.subscription.expiry_date = expiry_date;
                 
                 // Save the user with the migrated subscription data
                 await user.save();
@@ -235,13 +232,17 @@ const loginUser = async (req, res) => {
                 console.error('Error migrating subscription format:', migrationError, migrationError.stack);
                 // Create a default subscription object if migration fails
                 try {
-                    user.subscription = {
-                        plan_name: 'Free',
-                        subscribed_at: new Date(),
-                        payment_method: 'None',
-                        status: 'active',
-                        expiry_date: null
-                    };
+                    // Set individual properties to match the nested structure in the User model
+                    user.set('subscription', undefined); // Clear existing value
+                    user.subscription = {}; // Initialize as empty object
+                    
+                    // Set the properties according to the schema structure
+                    user.subscription.plan_name = 'Free';
+                    user.subscription.subscribed_at = new Date();
+                    user.subscription.payment_method = 'None';
+                    user.subscription.status = 'active';
+                    user.subscription.expiry_date = null;
+                    
                     await user.save();
                     console.log(`Created default subscription after migration failure for ${user.email}`);
                 } catch(err) {
@@ -289,27 +290,24 @@ const getUserProfile = async (req, res) => {
                 // Get the old subscription value before updating
                 const oldSubscriptionType = user.subscription;
                 
-                // Create a new subscription object
-                // Admins always get lifetime subscription
+                // Determine subscription details
                 const isAdmin = user.role === 'admin';
-                const newSubscription = isAdmin ? 
-                    {
-                        plan_name: 'Lifetime',
-                        subscribed_at: new Date(),
-                        payment_method: 'Manual',
-                        status: 'lifetime',
-                        expiry_date: null
-                    } : 
-                    {
-                        plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
-                        subscribed_at: new Date(),
-                        payment_method: 'None',
-                        status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
-                        expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
-                    };
+                const plan_name = isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
+                const status = isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active');
+                const expiry_date = (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                    ? null 
+                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for non-free, non-lifetime
                 
-                // Set the subscription explicitly
-                user.subscription = newSubscription;
+                // Set individual properties to match the nested structure in the User model
+                user.set('subscription', undefined); // Clear existing value
+                user.subscription = {}; // Initialize as empty object
+                
+                // Set the properties according to the schema structure
+                user.subscription.plan_name = plan_name;
+                user.subscription.subscribed_at = new Date();
+                user.subscription.payment_method = isAdmin ? 'Manual' : 'None';
+                user.subscription.status = status;
+                user.subscription.expiry_date = expiry_date;
                 
                 // Save the user with the migrated subscription data
                 await user.save();
@@ -318,13 +316,17 @@ const getUserProfile = async (req, res) => {
                 console.error('Error migrating subscription format in profile fetch:', migrationError, migrationError.stack);
                 // Create a default subscription object if migration fails
                 try {
-                    user.subscription = {
-                        plan_name: 'Free',
-                        subscribed_at: new Date(),
-                        payment_method: 'None',
-                        status: 'active',
-                        expiry_date: null
-                    };
+                    // Set individual properties to match the nested structure in the User model
+                    user.set('subscription', undefined); // Clear existing value
+                    user.subscription = {}; // Initialize as empty object
+                    
+                    // Set the properties according to the schema structure
+                    user.subscription.plan_name = 'Free';
+                    user.subscription.subscribed_at = new Date();
+                    user.subscription.payment_method = 'None';
+                    user.subscription.status = 'active';
+                    user.subscription.expiry_date = null;
+                    
                     await user.save();
                     console.log(`Created default subscription after migration failure for ${user.email} during profile fetch`);
                 } catch(err) {
