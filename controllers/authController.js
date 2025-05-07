@@ -22,23 +22,7 @@ const registerUser = async (req, res) => {
         // Check if it's the head admin email (abdmosh2000@gmail.com)
         const isHeadAdmin = email.toLowerCase() === 'abdmosh2000@gmail.com';
 
-        // Create a new user with appropriate role and subscription
-        const subscriptionData = isAdminEmail ? 
-            {
-                plan_name: 'Lifetime',
-                subscribed_at: new Date(),
-                payment_method: 'Manual',
-                status: 'lifetime',
-                expiry_date: null
-            } :
-            {
-                plan_name: 'Free',
-                subscribed_at: new Date(),
-                payment_method: 'None',
-                status: 'active',
-                expiry_date: null
-            };
-            
+        // Create a new user with appropriate role
         user = new User({
             name,
             email,
@@ -46,9 +30,25 @@ const registerUser = async (req, res) => {
             role: isAdminEmail ? 'admin' : 'user',
             // Add specific permissions for head admin
             permissions: isHeadAdmin ? ['full_access', 'system_admin', 'super_admin'] : [],
-            verified: false,
-            subscription: subscriptionData
+            verified: false
         });
+        
+        // Set subscription properties individually to match the nested structure in the User model
+        user.subscription = {}; // Initialize as empty object
+        
+        if (isAdminEmail) {
+            user.subscription.plan_name = 'Lifetime';
+            user.subscription.subscribed_at = new Date();
+            user.subscription.payment_method = 'Manual';
+            user.subscription.status = 'lifetime';
+            user.subscription.expiry_date = null;
+        } else {
+            user.subscription.plan_name = 'Free';
+            user.subscription.subscribed_at = new Date();
+            user.subscription.payment_method = 'None';
+            user.subscription.status = 'active';
+            user.subscription.expiry_date = null;
+        }
 
         // Generate verification token
         const verificationToken = user.createVerificationToken();

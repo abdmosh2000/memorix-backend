@@ -592,18 +592,20 @@ exports.giftSubscription = async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
     
-    // Update user subscription to an object format
+    // Update user subscription according to the nested structure in the User model
     const now = new Date();
     const isLifetime = subscriptionType === 'vip' || subscriptionType === 'lifetime';
     
-    // Create subscription object
-    user.subscription = {
-      plan_name: isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
-      subscribed_at: now,
-      payment_method: 'Manual',
-      status: isLifetime ? 'lifetime' : 'active',
-      expiry_date: isLifetime ? null : expiresAt
-    };
+    // Set individual properties to match the nested structure in the User model
+    user.set('subscription', undefined); // Clear existing value
+    user.subscription = {}; // Initialize as empty object
+    
+    // Set the properties according to the schema structure
+    user.subscription.plan_name = isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+    user.subscription.subscribed_at = now;
+    user.subscription.payment_method = 'Manual';
+    user.subscription.status = isLifetime ? 'lifetime' : 'active';
+    user.subscription.expiry_date = isLifetime ? null : expiresAt;
     
     // Add transaction record
     if (!user.paymentDetails) {
