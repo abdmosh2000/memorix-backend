@@ -28,36 +28,26 @@ const userSchema = new mongoose.Schema({
         default: 'default-profile.png' // Replace with default image path
     },
     subscription: {
-        // Ensure this is always an object
-        type: {
-            plan_name: {
-                type: String,
-                enum: ['Free', 'Premium', 'Lifetime'],
-                default: 'Free'
-            },
-            subscribed_at: {
-                type: Date,
-                default: Date.now
-            },
-            payment_method: {
-                type: String,
-                enum: ['PayPal', 'Stripe', 'Manual', 'None'],
-                default: 'None'
-            },
-            status: {
-                type: String,
-                enum: ['active', 'expired', 'lifetime'],
-                default: 'active'
-            },
-            expiry_date: Date
+        plan_name: {
+            type: String,
+            enum: ['Free', 'Premium', 'Lifetime'],
+            default: 'Free'
         },
-        default: {
-            plan_name: 'Free',
-            subscribed_at: new Date(),
-            payment_method: 'None',
-            status: 'active', 
-            expiry_date: null
-        }
+        subscribed_at: {
+            type: Date,
+            default: Date.now
+        },
+        payment_method: {
+            type: String,
+            enum: ['PayPal', 'Stripe', 'Manual', 'None'],
+            default: 'None'
+        },
+        status: {
+            type: String,
+            enum: ['active', 'expired', 'lifetime'],
+            default: 'active'
+        },
+        expiry_date: Date
     },
     paymentDetails: {
         orderID: String,
