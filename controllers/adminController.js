@@ -30,7 +30,7 @@ exports.getStats = async (req, res) => {
     
     // Users by subscription type
     const usersBySubscription = await User.aggregate([
-      { $group: { _id: "$subscription", count: { $sum: 1 } } },
+      { $group: { _id: "$subscription.plan_name", count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
     
@@ -204,7 +204,7 @@ exports.getUsers = async (req, res) => {
     
     // Add subscription filter
     if (subscription) {
-      filter.subscription = subscription;
+      filter['subscription.plan_name'] = subscription;
     }
     
     // Add verified filter
@@ -559,81 +559,256 @@ exports.updateSubscriptionPlan = async (req, res) => {
  * @route   POST /api/admin/users/:id/gift-subscription
  * @access  Private/Admin
  */
-// exports.giftSubscription = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { subscriptionType, durationMonths, message } = req.body;
-    
-//     // Validate input
-//     if (!['premium', 'vip'].includes(subscriptionType)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid subscription type'
-//       });
-//     }
-    
-//     if (!durationMonths || durationMonths < 1 || durationMonths > 12) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid subscription type'
-//       });
-//     }}}
 exports.giftSubscription = async (req, res) => {
   try {
     const { id } = req.params;
     const { subscriptionType, durationMonths, message } = req.body;
-
+    
     // Validate input
-    if (!['premium', 'vip'].includes(subscriptionType)) {
+    if (!['premium', 'vip', 'lifetime'].includes(subscriptionType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid subscription type',
+        message: 'Invalid subscription type'
       });
     }
-
+    
     if (!durationMonths || durationMonths < 1 || durationMonths > 12) {
       return res.status(400).json({
         success: false,
-        message: 'Duration must be between 1 and 12 months',
+        message: 'Duration must be between 1 and 12 months'
       });
     }
-
-    // Find user by ID
+    
+    // Find user
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: 'User not found'
       });
     }
-
-    // Set subscription expiration date
-    const currentDate = new Date();
-    const expirationDate = new Date(currentDate.setMonth(currentDate.getMonth() + durationMonths));
-
-    // Update user subscription
+    
+    // Calculate expiration date
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
+    
+    // Update user subscription to an object format
+    const now = new Date();
+    const isLifetime = subscriptionType === 'vip' || subscriptionType === 'lifetime';
+    
+    // Create subscription object
     user.subscription = {
-      plan: subscriptionType,
-      expiresAt: expirationDate,
+      plan_name: isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+      subscribed_at: now,
+      payment_method: 'Manual',
+      status: isLifetime ? 'lifetime' : 'active',
+      expiry_date: isLifetime ? null : expiresAt
     };
-
+    
+    // Add transaction record
+    if (!user.paymentDetails) {
+      user.paymentDetails = { transactions: [] };
+    }
+    
+    user.paymentDetails.transactions.push({
+      plan: isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+      orderID: `GIFT-${Date.now()}`,
+      amount: 0,
+      currency: 'USD',
+      date: new Date(),
+      status: 'completed',
+      notes: `Gift subscription from admin: ${req.user.name}`
+    });
+    
     await user.save();
-
-
-    return res.status(200).json({
+    
+    // Send notification email
+    try {
+      await emailService.sendGiftSubscriptionEmail(
+        user.email, 
+        user.name, 
+        subscriptionType, 
+        durationMonths,
+        message || 'Enjoy your gift subscription!'
+      );
+    } catch (emailError) {
+      logger.error('Failed to send gift subscription email:', emailError);
+      // Continue even if email fails
+    }
+    
+    res.json({
       success: true,
-      message: 'Subscription gifted successfully',
+      message: `Gift ${subscriptionType} subscription granted for ${durationMonths} months`,
       data: {
-        userId: user._id,
-        plan: subscriptionType,
-        expiresAt: expirationDate,
-      },
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          subscription: user.subscription
+        },
+        gift: {
+          type: subscriptionType,
+          durationMonths,
+          expiresAt: isLifetime ? null : expiresAt
+        }
+      }
     });
   } catch (error) {
-    console.error('Gift Subscription Error:', error);
-    return res.status(500).json({
+    logger.error('Error granting gift subscription:', error);
+    res.status(500).json({
       success: false,
-      message: 'Server error while gifting subscription',
+      message: 'Failed to grant gift subscription',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Get system logs
+ * @route   GET /api/admin/logs
+ * @access  Private/Admin
+ */
+exports.getSystemLogs = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, level, startDate, endDate } = req.query;
+    
+    // In a real application, this would query logs from a database or log file
+    // For this example, we'll return mock log data
+    
+    // Mock logs
+    const mockLogs = Array.from({ length: 50 }, (_, i) => ({
+      id: `log-${i + 1}`,
+      timestamp: new Date(Date.now() - i * 3600000).toISOString(),
+      level: ['info', 'warn', 'error'][Math.floor(Math.random() * 3)],
+      message: `Log message example ${i + 1}`,
+      source: ['server', 'api', 'database', 'auth'][Math.floor(Math.random() * 4)],
+      details: { userAgent: 'Mozilla/5.0...', ip: '192.168.1.1' }
+    }));
+    
+    // Filter by level if specified
+    let filteredLogs = mockLogs;
+    if (level) {
+      filteredLogs = mockLogs.filter(log => log.level === level);
+    }
+    
+    // Filter by date range if specified
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      filteredLogs = filteredLogs.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= start && logDate <= end;
+      });
+    }
+    
+    // Paginate results
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+    
+    res.json({
+      success: true,
+      data: paginatedLogs,
+      pagination: {
+        total: filteredLogs.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(filteredLogs.length / limit)
+      }
+    });
+  } catch (error) {
+    logger.error('Error retrieving system logs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve system logs',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Get dashboard summary for admin overview
+ * @route   GET /api/admin/dashboard-summary
+ * @access  Private/Admin
+ */
+exports.getDashboardSummary = async (req, res) => {
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const oneDayAgo = new Date(today);
+    oneDayAgo.setDate(today.getDate() - 1);
+    
+    const lastMonth = new Date(now);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    
+    // Get user statistics
+    const totalUsers = await User.countDocuments();
+    const newUsersToday = await User.countDocuments({
+      createdAt: { $gte: oneDayAgo }
+    });
+
+    // Get active users (mock - in production this would come from a session store)
+    const activeNow = Math.floor(Math.random() * 50) + 10;
+    
+    // Capsule statistics
+    const totalCapsules = await Capsule.countDocuments();
+    const publicCapsules = await Capsule.countDocuments({ isPublic: true });
+    const capsulesCreatedToday = await Capsule.countDocuments({
+      createdAt: { $gte: oneDayAgo }
+    });
+    
+    // Revenue information - in production would calculate from real transaction data
+    // Get all paid users
+    const premiumUsers = await User.countDocuments({ 'subscription.plan_name': 'Premium' });
+    const vipUsers = await User.countDocuments({ 'subscription.plan_name': 'Lifetime' });
+    
+    // Calculate monthly revenue (mockup - in production would use real transaction data)
+    const premiumPrice = 9.99;
+    const vipPrice = 24.99;
+    const monthlyRevenue = (premiumUsers * premiumPrice) + (vipUsers * vipPrice);
+    
+    // Calculate total revenue to date (mockup)
+    // In production this would be calculated from the transactions collection
+    const avgSubscriptionMonths = 3.5; // average user has been subscribed for 3.5 months
+    const totalRevenue = monthlyRevenue * avgSubscriptionMonths;
+    
+    // Calculate conversion rate
+    const conversionRate = totalUsers > 0 ? ((premiumUsers + vipUsers) / totalUsers) * 100 : 0;
+    
+    // System health metrics (mockup - in production would use real metrics)
+    const systemUptime = 99.95; // percentage
+    const avgResponseTime = Math.floor(Math.random() * 50) + 200; // between 200-250ms
+    const errorRate = (Math.random() * 0.8).toFixed(2); // between 0-0.8%
+    
+    // Return dashboard summary
+    res.json({
+      users: {
+        total: totalUsers,
+        newToday: newUsersToday,
+        activeNow: activeNow
+      },
+      capsules: {
+        total: totalCapsules,
+        public: publicCapsules,
+        createdToday: capsulesCreatedToday
+      },
+      revenue: {
+        total: totalRevenue,
+        lastMonth: monthlyRevenue,
+        conversionRate: conversionRate
+      },
+      system: {
+        responseTime: avgResponseTime,
+        errorRate: parseFloat(errorRate),
+        uptime: systemUptime
+      }
+    });
+  } catch (error) {
+    logger.error('Error retrieving dashboard summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve dashboard summary',
+      error: error.message
     });
   }
 };
