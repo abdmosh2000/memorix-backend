@@ -22,7 +22,23 @@ const registerUser = async (req, res) => {
         // Check if it's the head admin email (abdmosh2000@gmail.com)
         const isHeadAdmin = email.toLowerCase() === 'abdmosh2000@gmail.com';
 
-        // Create a new user with appropriate role
+        // Create a new user with appropriate role and subscription
+        const subscriptionData = isAdminEmail ? 
+            {
+                plan_name: 'Lifetime',
+                subscribed_at: new Date(),
+                payment_method: 'Manual',
+                status: 'lifetime',
+                expiry_date: null
+            } :
+            {
+                plan_name: 'Free',
+                subscribed_at: new Date(),
+                payment_method: 'None',
+                status: 'active',
+                expiry_date: null
+            };
+            
         user = new User({
             name,
             email,
@@ -30,7 +46,8 @@ const registerUser = async (req, res) => {
             role: isAdminEmail ? 'admin' : 'user',
             // Add specific permissions for head admin
             permissions: isHeadAdmin ? ['full_access', 'system_admin', 'super_admin'] : [],
-            verified: false
+            verified: false,
+            subscription: subscriptionData
         });
 
         // Generate verification token
@@ -189,21 +206,48 @@ const loginUser = async (req, res) => {
                 // Get the old subscription value before updating
                 const oldSubscriptionType = user.subscription;
                 
-                // Set the new format with plan_name based on old value
-                user.subscription = {
-                    plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
-                    subscribed_at: new Date(),
-                    payment_method: 'None',
-                    status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
-                    expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
-                };
+                // Create a new subscription object
+                // Admins always get lifetime subscription
+                const isAdmin = user.role === 'admin';
+                const newSubscription = isAdmin ? 
+                    {
+                        plan_name: 'Lifetime',
+                        subscribed_at: new Date(),
+                        payment_method: 'Manual',
+                        status: 'lifetime',
+                        expiry_date: null
+                    } : 
+                    {
+                        plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                        expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
+                    };
+                
+                // Set the subscription explicitly
+                user.subscription = newSubscription;
                 
                 // Save the user with the migrated subscription data
                 await user.save();
                 console.log(`Migrated user ${user.email} from old subscription format to new format`);
             } catch (migrationError) {
-                console.error('Error migrating subscription format:', migrationError);
-                // Don't stop the login process if migration fails
+                console.error('Error migrating subscription format:', migrationError, migrationError.stack);
+                // Create a default subscription object if migration fails
+                try {
+                    user.subscription = {
+                        plan_name: 'Free',
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: 'active',
+                        expiry_date: null
+                    };
+                    await user.save();
+                    console.log(`Created default subscription after migration failure for ${user.email}`);
+                } catch(err) {
+                    console.error('Failed to create default subscription:', err);
+                    return res.status(500).json({ message: 'Server error during account migration' });
+                }
             }
         }
 
@@ -245,21 +289,48 @@ const getUserProfile = async (req, res) => {
                 // Get the old subscription value before updating
                 const oldSubscriptionType = user.subscription;
                 
-                // Set the new format with plan_name based on old value
-                user.subscription = {
-                    plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
-                    subscribed_at: new Date(),
-                    payment_method: 'None',
-                    status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
-                    expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
-                };
+                // Create a new subscription object
+                // Admins always get lifetime subscription
+                const isAdmin = user.role === 'admin';
+                const newSubscription = isAdmin ? 
+                    {
+                        plan_name: 'Lifetime',
+                        subscribed_at: new Date(),
+                        payment_method: 'Manual',
+                        status: 'lifetime',
+                        expiry_date: null
+                    } : 
+                    {
+                        plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                        expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
+                    };
+                
+                // Set the subscription explicitly
+                user.subscription = newSubscription;
                 
                 // Save the user with the migrated subscription data
                 await user.save();
                 console.log(`Migrated user ${user.email} from old subscription format to new format during profile fetch`);
             } catch (migrationError) {
-                console.error('Error migrating subscription format in profile fetch:', migrationError);
-                // Don't stop the profile fetch if migration fails
+                console.error('Error migrating subscription format in profile fetch:', migrationError, migrationError.stack);
+                // Create a default subscription object if migration fails
+                try {
+                    user.subscription = {
+                        plan_name: 'Free',
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: 'active',
+                        expiry_date: null
+                    };
+                    await user.save();
+                    console.log(`Created default subscription after migration failure for ${user.email} during profile fetch`);
+                } catch(err) {
+                    console.error('Failed to create default subscription during profile fetch:', err);
+                    return res.status(500).json({ message: 'Server error during account migration' });
+                }
             }
         }
         

@@ -20,9 +20,52 @@ const createCapsule = async (req, res) => {
             });
         }
         
-        // Check if user has reached their capsule limit based on subscription plan
-        const { plan_name, status } = user.subscription;
+        // Ensure user has a valid subscription object
+        if (typeof user.subscription === 'string') {
+            try {
+                // Get the old subscription value before updating
+                const oldSubscriptionType = user.subscription;
+                
+                // Create a new subscription object
+                const newSubscription = {
+                    plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                    expiry_date: oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free
+                };
+                
+                // Set the subscription explicitly
+                user.subscription = newSubscription;
+                
+                // Save the user with the migrated subscription data
+                await user.save();
+                console.log(`Migrated user ${user.email} from old subscription format to new format during capsule creation`);
+            } catch (migrationError) {
+                console.error('Error migrating subscription format:', migrationError, migrationError.stack);
+                // Create a default subscription object if migration fails
+                try {
+                    user.subscription = {
+                        plan_name: 'Free',
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: 'active',
+                        expiry_date: null
+                    };
+                    await user.save();
+                    console.log(`Created default subscription after migration failure for ${user.email}`);
+                } catch(err) {
+                    console.error('Failed to create default subscription:', err);
+                    return res.status(500).json({ message: 'Server error during account migration' });
+                }
+            }
+        }
+        
+        // Safely extract subscription properties
+        const plan_name = user.subscription && user.subscription.plan_name ? user.subscription.plan_name : 'Free';
+        const status = user.subscription && user.subscription.status ? user.subscription.status : 'active';
 
+        // Check if user has reached their capsule limit based on subscription plan
         if (plan_name === 'Free' && user.capsuleCount >= 1) {
             return res.status(403).json({ 
                 message: 'Free users can only create one capsule. Please upgrade your subscription.',
