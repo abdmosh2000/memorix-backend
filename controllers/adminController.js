@@ -421,6 +421,86 @@ exports.getStats = async (req, res) => {
  * @route   GET /api/admin/users
  * @access  Private/Admin
  */
+// exports.getUsers = async (req, res) => {
+//   try {
+//     const { 
+//       page = 1, 
+//       limit = 10, 
+//       search = '', 
+//       role, 
+//       subscription,
+//       verified,
+//       sortBy = 'createdAt',
+//       sortOrder = 'desc'
+//     } = req.query;
+    
+//     // Build filter object
+//     const filter = {};
+    
+//     // Add search filter (search by name or email)
+//     if (search) {
+//       filter.$or = [
+//         { name: { $regex: search, $options: 'i' } },
+//         { email: { $regex: search, $options: 'i' } }
+//       ];
+//     }
+    
+//     // Add role filter
+//     if (role) {
+//       filter.role = role;
+//     }
+    
+//     // Add subscription filter
+//     if (subscription) {
+//       filter['subscription.plan_name'] = subscription;
+//     }
+    
+//     // Add verified filter
+//     if (verified !== undefined) {
+//       filter.verified = verified === 'true';
+//     }
+    
+//     // Determine sort direction
+//     const sort = {};
+//     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+//     // Calculate pagination values
+//     const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+//     // Get paginated users
+//     const users = await User.find(filter)
+//       .sort(sort)
+//       .skip(skip)
+//       .limit(parseInt(limit))
+//       .select('-password -verificationToken -passwordResetToken -passwordResetExpires');
+    
+//     // Get total count for pagination
+//     const total = await User.countDocuments(filter);
+    
+//     res.json({
+//       success: true,
+//       data: users,
+//       pagination: {
+//         total,
+//         page: parseInt(page),
+//         limit: parseInt(limit),
+//         pages: Math.ceil(total / parseInt(limit))
+//       }
+//     });
+//   } catch (error) {
+//     logger.error('Error retrieving users:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to retrieve users',
+//       error: error.message
+//     });
+//   }
+// };
+/**
+ * @desc    Get all users with filtering, pagination and search
+ * @route   GET /api/admin/users
+ * @access  Private/Admin
+ */
 exports.getUsers = async (req, res) => {
   try {
     const { 
@@ -450,9 +530,15 @@ exports.getUsers = async (req, res) => {
       filter.role = role;
     }
     
-    // Add subscription filter
+    // Add subscription filter - handle both object and string subscriptions
     if (subscription) {
-      filter['subscription.plan_name'] = subscription;
+      filter.$or = filter.$or || [];
+      filter.$or.push(
+        // Match subscription as string
+        { subscription: subscription },
+        // Match subscription as object with plan_name
+        { 'subscription.plan_name': subscription }
+      );
     }
     
     // Add verified filter
@@ -467,19 +553,44 @@ exports.getUsers = async (req, res) => {
     // Calculate pagination values
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get paginated users
+    // Get users as lean documents (plain JavaScript objects) to avoid Mongoose schema validation issues
     const users = await User.find(filter)
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-password -verificationToken -passwordResetToken -passwordResetExpires');
+      .select('-password -verificationToken -passwordResetToken -passwordResetExpires')
+      .lean();
+    
+    // Process users to handle subscription data
+    const processedUsers = users.map(user => {
+      // If subscription is a string, convert it to an object format
+      if (typeof user.subscription === 'string') {
+        const subscriptionValue = user.subscription;
+        user.subscription = {
+          plan_name: subscriptionValue.charAt(0).toUpperCase() + subscriptionValue.slice(1),
+          status: 'active',
+          subscribed_at: user.createdAt || new Date(),
+          payment_method: 'Default'
+        };
+      } else if (!user.subscription) {
+        // If subscription is null/undefined, set a default
+        user.subscription = {
+          plan_name: 'Free',
+          status: 'active',
+          subscribed_at: user.createdAt || new Date(),
+          payment_method: 'Default'
+        };
+      }
+      
+      return user;
+    });
     
     // Get total count for pagination
     const total = await User.countDocuments(filter);
     
     res.json({
       success: true,
-      data: users,
+      data: processedUsers,
       pagination: {
         total,
         page: parseInt(page),
@@ -496,7 +607,6 @@ exports.getUsers = async (req, res) => {
     });
   }
 };
-
 /**
  * @desc    Update user role
  * @route   PUT /api/admin/users/:id/role
