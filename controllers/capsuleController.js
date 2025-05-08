@@ -20,27 +20,31 @@ const createCapsule = async (req, res) => {
             });
         }
         
-        // Ensure user has a valid subscription object
-        if (typeof user.subscription === 'string') {
-            try {
-                // Get the old subscription value before updating
-                const oldSubscriptionType = user.subscription;
-                
-                // Create a new subscription object with the correct nested structure
-                const plan_name = oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
-                const status = oldSubscriptionType === 'vip' ? 'lifetime' : 'active';
-                const expiry_date = oldSubscriptionType === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for non-free
-                
-                // Set individual properties to match the nested structure in the User model
-                user.set('subscription', undefined); // Clear existing value
-                user.subscription = {}; // Initialize as empty object
-                
-                // Set the properties according to the schema structure
-                user.subscription.plan_name = plan_name;
-                user.subscription.subscribed_at = new Date();
-                user.subscription.payment_method = 'None';
-                user.subscription.status = status;
-                user.subscription.expiry_date = expiry_date;
+    // Ensure user has a valid subscription object
+    if (typeof user.subscription === 'string') {
+      try {
+        // Get the old subscription value before updating
+        const oldSubscriptionType = user.subscription;
+        
+        // Convert the plan name to proper case, e.g., 'free' -> 'Free'
+        const plan_name = oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
+        
+        // Determine the status based on the old subscription type
+        const status = oldSubscriptionType === 'vip' ? 'lifetime' : 'active';
+        
+        // Set expiry date - null for free or lifetime, 30 days from now for premium
+        const expiry_date = (oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+          ? null 
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        // Clear existing subscription value and create a new object
+        user.subscription = {
+          plan_name: plan_name,
+          subscribed_at: new Date(),
+          payment_method: 'None',
+          status: status,
+          expiry_date: expiry_date
+        };
                 
                 // Save the user with the migrated subscription data
                 await user.save();
