@@ -26,52 +26,66 @@ const createCapsule = async (req, res) => {
         // Get the old subscription value before updating
         const oldSubscriptionType = user.subscription;
         
-        // Convert the plan name to proper case, e.g., 'free' -> 'Free'
-        const plan_name = oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
-        
-        // Determine the status based on the old subscription type
+        // Get the new values for the subscription object
+        const planName = oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
         const status = oldSubscriptionType === 'vip' ? 'lifetime' : 'active';
-        
-        // Set expiry date - null for free or lifetime, 30 days from now for premium
-        const expiry_date = (oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+        const expiryDate = (oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
           ? null 
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         
-        // Clear existing subscription value and create a new object
-        user.subscription = {
-          plan_name: plan_name,
-          subscribed_at: new Date(),
-          payment_method: 'None',
-          status: status,
-          expiry_date: expiry_date
-        };
+        // Use atomic MongoDB update operation to ensure proper object structure
+        await User.findByIdAndUpdate(
+          user._id,
+          { 
+            $set: { 
+              subscription: {
+                plan_name: planName,
+                subscribed_at: new Date(),
+                payment_method: 'None',
+                status: status,
+                expiry_date: expiryDate
+              }
+            } 
+          },
+          { new: true, runValidators: true }
+        );
+        
+        // Reload the user to get updated subscription
+        user = await User.findById(user._id);
+        
+        console.log(`Migrated user ${user.email} from old subscription format (${oldSubscriptionType}) to new format`);
                 
-                // Save the user with the migrated subscription data
-                await user.save();
-                console.log(`Migrated user ${user.email} from old subscription format to new format during capsule creation`);
-            } catch (migrationError) {
-                console.error('Error migrating subscription format:', migrationError, migrationError.stack);
-                // Create a default subscription object if migration fails
-                try {
-                    // Set individual properties to match the nested structure in the User model
-                    user.set('subscription', undefined); // Clear existing value
-                    user.subscription = {}; // Initialize as empty object
-                    
-                    // Set the properties according to the schema structure
-                    user.subscription.plan_name = 'Free';
-                    user.subscription.subscribed_at = new Date();
-                    user.subscription.payment_method = 'None';
-                    user.subscription.status = 'active';
-                    user.subscription.expiry_date = null;
-                    
-                    await user.save();
-                    console.log(`Created default subscription after migration failure for ${user.email}`);
-                } catch(err) {
-                    console.error('Failed to create default subscription:', err);
-                    return res.status(500).json({ message: 'Server error during account migration' });
+      } catch (migrationError) {
+        console.error('Error migrating subscription format:', migrationError, migrationError.stack);
+        
+        try {
+          // Use atomic update with default values if migration fails
+          await User.findByIdAndUpdate(
+            user._id,
+            {
+              $set: {
+                subscription: {
+                  plan_name: 'Free',
+                  subscribed_at: new Date(),
+                  payment_method: 'None',
+                  status: 'active',
+                  expiry_date: null
                 }
-            }
+              }
+            },
+            { new: true, runValidators: true }
+          );
+          
+          // Reload the user to get updated subscription
+          user = await User.findById(user._id);
+          
+          console.log(`Created default subscription after migration failure for ${user.email}`);
+        } catch(err) {
+          console.error('Failed to create default subscription:', err, err.stack);
+          return res.status(500).json({ message: 'Server error during account migration' });
         }
+      }
+    }
         
         // Safely extract subscription properties, accounting for nested structure
         const plan_name = user.subscription && user.subscription.plan_name ? user.subscription.plan_name : 'Free';
