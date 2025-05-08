@@ -15,11 +15,51 @@ const protect = async (req, res, next) => {
             console.log('Decoded token:', decoded);
 
             // Get user from the token
-            const user = await User.findById(decoded.id).select('-password');
+            let user = await User.findById(decoded.id).select('-password');
             
             if (!user) {
                 console.error('User not found for token:', token);
                 return res.status(401).json({ message: 'User not found' });
+            }
+            
+            // Handle case where subscription is a string (migration from old format)
+            if (typeof user.subscription === 'string') {
+                console.log(`Auth middleware detected string subscription '${user.subscription}' for user ${user._id}`);
+                try {
+                    // Get the old subscription value
+                    const oldSubscriptionType = user.subscription;
+                    
+                    // Convert to object format
+                    const subscription = {
+                        plan_name: oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: oldSubscriptionType === 'vip' ? 'lifetime' : 'active',
+                        expiry_date: (oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    };
+                    
+                    // Update user in database
+                    await User.findByIdAndUpdate(
+                        user._id,
+                        { $set: { subscription } },
+                        { new: false, runValidators: false }
+                    );
+                    
+                    console.log(`Updated user's subscription in auth middleware`);
+                    
+                    // Set the subscription directly on the user object in memory
+                    user.subscription = subscription;
+                } catch (error) {
+                    console.error('Error handling string subscription in auth middleware:', error);
+                    // If we can't update, just use a default object for this request
+                    user.subscription = {
+                        plan_name: 'Free',
+                        subscribed_at: new Date(),
+                        payment_method: 'None',
+                        status: 'active',
+                        expiry_date: null
+                    };
+                }
             }
             
             // Set user in request
