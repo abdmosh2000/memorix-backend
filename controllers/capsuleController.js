@@ -20,71 +20,30 @@ const createCapsule = async (req, res) => {
             });
         }
         
-    // Ensure user has a valid subscription object
+    // Any string subscription will be automatically converted to an object by the User model's pre-save hook
+    // We'll just ensure the user is saved before proceeding to apply any model hooks
     if (typeof user.subscription === 'string') {
-      try {
-        // Get the old subscription value before updating
-        const oldSubscriptionType = user.subscription;
-        
-        // Get the new values for the subscription object
-        const planName = oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
-        const status = oldSubscriptionType === 'vip' ? 'lifetime' : 'active';
-        const expiryDate = (oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
-          ? null 
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        
-        // Use atomic MongoDB update operation to ensure proper object structure
-        await User.findByIdAndUpdate(
-          user._id,
-          { 
-            $set: { 
-              subscription: {
-                plan_name: planName,
-                subscribed_at: new Date(),
-                payment_method: 'None',
-                status: status,
-                expiry_date: expiryDate
-              }
-            } 
-          },
-          { new: true, runValidators: true }
-        );
-        
-        // Reload the user to get updated subscription
-        user = await User.findById(user._id);
-        
-        console.log(`Migrated user ${user.email} from old subscription format (${oldSubscriptionType}) to new format`);
-                
-      } catch (migrationError) {
-        console.error('Error migrating subscription format:', migrationError, migrationError.stack);
-        
+        console.log(`Found string subscription '${user.subscription}' for user ${user.email}, saving to trigger middleware conversion`);
         try {
-          // Use atomic update with default values if migration fails
-          await User.findByIdAndUpdate(
-            user._id,
-            {
-              $set: {
-                subscription: {
-                  plan_name: 'Free',
-                  subscribed_at: new Date(),
-                  payment_method: 'None',
-                  status: 'active',
-                  expiry_date: null
-                }
-              }
-            },
-            { new: true, runValidators: true }
-          );
-          
-          // Reload the user to get updated subscription
-          user = await User.findById(user._id);
-          
-          console.log(`Created default subscription after migration failure for ${user.email}`);
-        } catch(err) {
-          console.error('Failed to create default subscription:', err, err.stack);
-          return res.status(500).json({ message: 'Server error during account migration' });
+            await user.save();
+            console.log(`User ${user.email} saved with subscription updated through middleware`);
+        } catch (error) {
+            console.error('Error saving user with subscription middleware:', error);
+            if (error.message.includes('subscription')) {
+                // If there's still an error with the subscription field, set it manually
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
+                await user.save();
+            } else {
+                // If it's another kind of error, return it
+                throw error;
+            }
         }
-      }
     }
         
         // Safely extract subscription properties, accounting for nested structure

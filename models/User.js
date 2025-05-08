@@ -28,36 +28,26 @@ const userSchema = new mongoose.Schema({
         default: 'default-profile.png' // Replace with default image path
     },
     subscription: {
-        // Ensure this is always an object
-        type: {
-            plan_name: {
-                type: String,
-                enum: ['Free', 'Premium', 'Lifetime'],
-                default: 'Free'
-            },
-            subscribed_at: {
-                type: Date,
-                default: Date.now
-            },
-            payment_method: {
-                type: String,
-                enum: ['PayPal', 'Stripe', 'Manual', 'None'],
-                default: 'None'
-            },
-            status: {
-                type: String,
-                enum: ['active', 'expired', 'lifetime'],
-                default: 'active'
-            },
-            expiry_date: Date
+        plan_name: {
+            type: String,
+            enum: ['Free', 'Premium', 'Lifetime'],
+            default: 'Free'
         },
-        default: {
-            plan_name: 'Free',
-            subscribed_at: new Date(),
-            payment_method: 'None',
-            status: 'active', 
-            expiry_date: null
-        }
+        subscribed_at: {
+            type: Date,
+            default: Date.now
+        },
+        payment_method: {
+            type: String,
+            enum: ['PayPal', 'Stripe', 'Manual', 'None'],
+            default: 'None'
+        },
+        status: {
+            type: String,
+            enum: ['active', 'expired', 'lifetime'],
+            default: 'active'
+        },
+        expiry_date: Date
     },
     paymentDetails: {
         orderID: String,
@@ -123,6 +113,49 @@ userSchema.pre('save', async function (next) {
 
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
+
+// Handle subscription field to ensure it's always an object
+userSchema.pre('save', function(next) {
+    // If subscription is a string (like 'free', 'premium', 'vip'), convert it to proper object
+    if (typeof this.subscription === 'string') {
+        console.log(`Converting string subscription '${this.subscription}' to object`);
+        const subscriptionType = this.subscription;
+        
+        // Convert the plan name to proper case
+        const planName = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+        
+        // Determine status and expiry based on plan type
+        const status = subscriptionType === 'vip' ? 'lifetime' : 'active';
+        const expiryDate = (subscriptionType === 'free' || subscriptionType === 'vip') 
+            ? null 
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for paid non-lifetime
+        
+        // Set the subscription object
+        this.subscription = {
+            plan_name: planName,
+            subscribed_at: new Date(),
+            payment_method: 'None',
+            status: status,
+            expiry_date: expiryDate
+        };
+        
+        console.log('Converted subscription to:', this.subscription);
+    }
+    
+    // Ensure the subscription has default values if it's an empty object
+    if (this.subscription === null || (typeof this.subscription === 'object' && Object.keys(this.subscription).length === 0)) {
+        console.log('Empty subscription object detected, setting defaults');
+        this.subscription = {
+            plan_name: 'Free',
+            subscribed_at: new Date(),
+            payment_method: 'None',
+            status: 'active',
+            expiry_date: null
+        };
+    }
+    
     next();
 });
 
