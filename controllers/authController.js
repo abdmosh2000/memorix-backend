@@ -113,6 +113,39 @@ const verifyEmail = async (req, res) => {
             return res.status(400).json({ message: 'Invalid or expired verification token' });
         }
 
+        // Handle string subscription if present
+        if (typeof user.subscription === 'string') {
+            try {
+                const oldSubscriptionType = user.subscription;
+                const isAdmin = user.role === 'admin';
+                
+                // Create subscription object
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                };
+                
+                // Update subscription data
+                user.subscription = subscriptionData;
+                console.log(`Converted string subscription '${oldSubscriptionType}' to object during email verification`);
+            } catch (error) {
+                console.error('Error handling subscription during verification:', error);
+                // Set a default if there's an error
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
+            }
+        }
+
         // Update user as verified and clear token
         user.verified = true;
         user.verificationToken = undefined;
@@ -157,6 +190,39 @@ const resendVerification = async (req, res) => {
         if (user.verified) {
             return res.status(400).json({ message: 'Email is already verified' });
         }
+        
+        // Handle string subscription if present
+        if (typeof user.subscription === 'string') {
+            try {
+                const oldSubscriptionType = user.subscription;
+                const isAdmin = user.role === 'admin';
+                
+                // Create subscription object
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                };
+                
+                // Update subscription data
+                user.subscription = subscriptionData;
+                console.log(`Converted string subscription '${oldSubscriptionType}' to object during resend verification`);
+            } catch (error) {
+                console.error('Error handling subscription during resend verification:', error);
+                // Set a default if there's an error
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
+            }
+        }
 
         // Generate new verification token
         const verificationToken = user.createVerificationToken();
@@ -179,14 +245,18 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Check if user exists
-        const user = await User.findOne({ email });
+        // Check if user exists - use lean() to get a plain object instead of a Mongoose document
+        // This helps avoid issues with trying to set properties on string subscription values
+        let user = await User.findOne({ email }).lean();
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Create a proper User model instance for password comparison
+        const userInstance = new User(user);
+        
         // Check if password matches
-        const isMatch = await user.matchPassword(password);
+        const isMatch = await userInstance.matchPassword(password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
@@ -200,58 +270,51 @@ const loginUser = async (req, res) => {
             });
         }
         
-        // Migration: Convert old string subscription format to new object format
+        // Handle string subscription separately - don't try to modify it directly
         if (typeof user.subscription === 'string') {
+            console.log('String subscription detected during login, converting...');
+            
             try {
-                // Get the old subscription value before updating
+                // Create subscription data object from string value
                 const oldSubscriptionType = user.subscription;
-                
-                // Determine subscription details
                 const isAdmin = user.role === 'admin';
-                const plan_name = isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
-                const status = isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active');
-                const expiry_date = (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
-                    ? null 
-                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for non-free, non-lifetime
                 
-                // Set individual properties to match the nested structure in the User model
-                user.set('subscription', undefined); // Clear existing value
-                user.subscription = {}; // Initialize as empty object
+                // Prepare the subscription data
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free, non-lifetime
+                };
                 
-                // Set the properties according to the schema structure
-                user.subscription.plan_name = plan_name;
-                user.subscription.subscribed_at = new Date();
-                user.subscription.payment_method = isAdmin ? 'Manual' : 'None';
-                user.subscription.status = status;
-                user.subscription.expiry_date = expiry_date;
+                // Update user document with atomic operation
+                await User.findByIdAndUpdate(
+                    user._id, 
+                    { $set: { subscription: subscriptionData } },
+                    { runValidators: false }
+                );
                 
-                // Save the user with the migrated subscription data
-                await user.save();
-                console.log(`Migrated user ${user.email} from old subscription format to new format`);
-            } catch (migrationError) {
-                console.error('Error migrating subscription format:', migrationError, migrationError.stack);
-                // Create a default subscription object if migration fails
-                try {
-                    // Set individual properties to match the nested structure in the User model
-                    user.set('subscription', undefined); // Clear existing value
-                    user.subscription = {}; // Initialize as empty object
-                    
-                    // Set the properties according to the schema structure
-                    user.subscription.plan_name = 'Free';
-                    user.subscription.subscribed_at = new Date();
-                    user.subscription.payment_method = 'None';
-                    user.subscription.status = 'active';
-                    user.subscription.expiry_date = null;
-                    
-                    await user.save();
-                    console.log(`Created default subscription after migration failure for ${user.email}`);
-                } catch(err) {
-                    console.error('Failed to create default subscription:', err);
-                    return res.status(500).json({ message: 'Server error during account migration' });
-                }
+                console.log(`Updated subscription for user ${user.email} from string to object during login`);
+                
+                // Update our local copy for the response
+                user.subscription = subscriptionData;
+            } catch (error) {
+                console.error('Failed to update subscription during login:', error);
+                // If update fails, use a safe default for the response
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
             }
         }
 
+        // Return response with updated subscription
         res.json({
             _id: user._id,
             name: user.name,
@@ -263,7 +326,7 @@ const loginUser = async (req, res) => {
             token: generateToken(user._id)
         });
     } catch (err) {
-        console.error(err.message);
+        console.error('Login error:', err.message, err.stack);
         res.status(500).json({ message: 'Server error during login' });
     }
 };
@@ -282,63 +345,56 @@ const logoutUser = async (req, res) => {
 // @access  Private
 const getUserProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        // Use lean to get a plain object instead of a Mongoose document
+        let user = await User.findById(req.user.id).select('-password').lean();
         
-        // Migration: Convert old string subscription format to new object format
+        // Handle string subscription - use atomic update instead of direct property modification
         if (typeof user.subscription === 'string') {
+            console.log('String subscription detected during profile fetch, converting...');
+            
             try {
-                // Get the old subscription value before updating
+                // Create subscription data object from string value
                 const oldSubscriptionType = user.subscription;
-                
-                // Determine subscription details
                 const isAdmin = user.role === 'admin';
-                const plan_name = isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1);
-                const status = isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active');
-                const expiry_date = (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
-                    ? null 
-                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for non-free, non-lifetime
                 
-                // Set individual properties to match the nested structure in the User model
-                user.set('subscription', undefined); // Clear existing value
-                user.subscription = {}; // Initialize as empty object
+                // Process the subscription data
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free, non-lifetime
+                };
                 
-                // Set the properties according to the schema structure
-                user.subscription.plan_name = plan_name;
-                user.subscription.subscribed_at = new Date();
-                user.subscription.payment_method = isAdmin ? 'Manual' : 'None';
-                user.subscription.status = status;
-                user.subscription.expiry_date = expiry_date;
+                // Update user document with atomic operation
+                await User.findByIdAndUpdate(
+                    user._id, 
+                    { $set: { subscription: subscriptionData } },
+                    { runValidators: false }
+                );
                 
-                // Save the user with the migrated subscription data
-                await user.save();
-                console.log(`Migrated user ${user.email} from old subscription format to new format during profile fetch`);
-            } catch (migrationError) {
-                console.error('Error migrating subscription format in profile fetch:', migrationError, migrationError.stack);
-                // Create a default subscription object if migration fails
-                try {
-                    // Set individual properties to match the nested structure in the User model
-                    user.set('subscription', undefined); // Clear existing value
-                    user.subscription = {}; // Initialize as empty object
-                    
-                    // Set the properties according to the schema structure
-                    user.subscription.plan_name = 'Free';
-                    user.subscription.subscribed_at = new Date();
-                    user.subscription.payment_method = 'None';
-                    user.subscription.status = 'active';
-                    user.subscription.expiry_date = null;
-                    
-                    await user.save();
-                    console.log(`Created default subscription after migration failure for ${user.email} during profile fetch`);
-                } catch(err) {
-                    console.error('Failed to create default subscription during profile fetch:', err);
-                    return res.status(500).json({ message: 'Server error during account migration' });
-                }
+                console.log(`Updated subscription for user ${user.email} from string to object during profile fetch`);
+                
+                // Update our local copy for the response
+                user.subscription = subscriptionData;
+            } catch (error) {
+                console.error('Failed to update subscription during profile fetch:', error);
+                // If update fails, use a safe default for the response
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
             }
         }
         
         res.json(user);
     } catch (err) {
-        console.error(err.message);
+        console.error('Error in getUserProfile:', err.message, err.stack);
         res.status(500).send('Server error');
     }
 };
@@ -358,6 +414,39 @@ const forgotPassword = async (req, res) => {
         if (!user) {
             // For security reasons, don't let the client know if the email exists or not
             return res.json({ message: 'If an account with that email exists, we have sent a password reset link' });
+        }
+        
+        // Handle string subscription if present
+        if (typeof user.subscription === 'string') {
+            try {
+                const oldSubscriptionType = user.subscription;
+                const isAdmin = user.role === 'admin';
+                
+                // Create subscription object
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                };
+                
+                // Update subscription data
+                user.subscription = subscriptionData;
+                console.log(`Converted string subscription '${oldSubscriptionType}' to object during password reset request`);
+            } catch (error) {
+                console.error('Error handling subscription during password reset request:', error);
+                // Set a default if there's an error
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
+            }
         }
 
         // Generate reset token
@@ -417,6 +506,39 @@ const resetPassword = async (req, res) => {
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid or expired reset token' });
+        }
+        
+        // Handle string subscription if present
+        if (typeof user.subscription === 'string') {
+            try {
+                const oldSubscriptionType = user.subscription;
+                const isAdmin = user.role === 'admin';
+                
+                // Create subscription object
+                const subscriptionData = {
+                    plan_name: isAdmin ? 'Lifetime' : oldSubscriptionType.charAt(0).toUpperCase() + oldSubscriptionType.slice(1),
+                    subscribed_at: new Date(),
+                    payment_method: isAdmin ? 'Manual' : 'None',
+                    status: isAdmin ? 'lifetime' : (oldSubscriptionType === 'vip' ? 'lifetime' : 'active'),
+                    expiry_date: (isAdmin || oldSubscriptionType === 'free' || oldSubscriptionType === 'vip') 
+                        ? null 
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                };
+                
+                // Update subscription data
+                user.subscription = subscriptionData;
+                console.log(`Converted string subscription '${oldSubscriptionType}' to object during password reset`);
+            } catch (error) {
+                console.error('Error handling subscription during password reset:', error);
+                // Set a default if there's an error
+                user.subscription = {
+                    plan_name: 'Free',
+                    subscribed_at: new Date(),
+                    payment_method: 'None',
+                    status: 'active',
+                    expiry_date: null
+                };
+            }
         }
 
         // Update password and clear token

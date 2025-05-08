@@ -269,7 +269,7 @@ exports.updateUserRole = async (req, res) => {
     }
     
     // Find user
-    const user = await User.findById(id);
+    let user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -402,7 +402,7 @@ exports.verifyUserEmail = async (req, res) => {
     const { id } = req.params;
     
     // Find user
-    const user = await User.findById(id);
+    let user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -579,8 +579,8 @@ exports.giftSubscription = async (req, res) => {
       });
     }
     
-    // Find user
-    const user = await User.findById(id);
+    // Find user initially
+    let user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -592,20 +592,28 @@ exports.giftSubscription = async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
     
-    // Update user subscription according to the nested structure in the User model
+    // Prepare the new subscription data
     const now = new Date();
     const isLifetime = subscriptionType === 'vip' || subscriptionType === 'lifetime';
     
-    // Set individual properties to match the nested structure in the User model
-    user.set('subscription', undefined); // Clear existing value
-    user.subscription = {}; // Initialize as empty object
+    // Create the subscription object
+    const subscriptionData = {
+        plan_name: isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+        subscribed_at: now,
+        payment_method: 'Manual',
+        status: isLifetime ? 'lifetime' : 'active',
+        expiry_date: isLifetime ? null : expiresAt
+    };
     
-    // Set the properties according to the schema structure
-    user.subscription.plan_name = isLifetime ? 'Lifetime' : subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
-    user.subscription.subscribed_at = now;
-    user.subscription.payment_method = 'Manual';
-    user.subscription.status = isLifetime ? 'lifetime' : 'active';
-    user.subscription.expiry_date = isLifetime ? null : expiresAt;
+    // Update subscription using findByIdAndUpdate to avoid object property issues
+    await User.findByIdAndUpdate(
+        user._id,
+        { $set: { subscription: subscriptionData } },
+        { runValidators: false }
+    );
+    
+    // Re-fetch the user to get the updated data
+    user = await User.findById(id);
     
     // Add transaction record
     if (!user.paymentDetails) {
