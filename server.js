@@ -8,7 +8,7 @@ const PORT = parseInt(process.env.PORT || 5000, 10);
 app.get("/", (req, res) => {
   res.send("✅ Memorix API is online!");
 });
-
+//logs
 // Log environment information for troubleshooting
 logEnvironmentInfo();
 
