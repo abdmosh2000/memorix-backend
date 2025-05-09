@@ -4,165 +4,169 @@ const { logger } = require('../utils/logger');
 const emailService = require('../utils/emailService');
 const config = require('../config/config');
 
-
-// exports.getStats = async (req, res) => {
-//   try {
-//     const now = new Date();
-//     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-//     const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-//     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+/**
+ * @desc    Get dashboard statistics for admin
+ * @route   GET /api/admin/stats
+ * @access  Private/Admin
+ */
+exports.getStats = async (req, res) => {
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
     
-//     // Get user statistics
-//     const totalUsers = await User.countDocuments();
-//     const newUsers = await User.countDocuments({
-//       createdAt: { $gte: oneMonthAgo }
-//     });
+    // Get user statistics
+    const totalUsers = await User.countDocuments();
+    const newUsers = await User.countDocuments({
+      createdAt: { $gte: oneMonthAgo }
+    });
     
-//     // Users by role distribution
-//     const usersByRole = await User.aggregate([
-//       { $group: { _id: "$role", count: { $sum: 1 } } },
-//       { $sort: { count: -1 } }
-//     ]);
+    // Users by role distribution
+    const usersByRole = await User.aggregate([
+      { $group: { _id: "$role", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
     
-//     // Users by subscription type
-//     const usersBySubscription = await User.aggregate([
-//       { $group: { _id: "$subscription.plan_name", count: { $sum: 1 } } },
-//       { $sort: { count: -1 } }
-//     ]);
+    // Users by subscription type
+    const usersBySubscription = await User.aggregate([
+      { $group: { _id: "$subscription.plan_name", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
     
-//     // Capsule statistics
-//     const totalCapsules = await Capsule.countDocuments();
-//     const publicCapsules = await Capsule.countDocuments({ isPublic: true });
-//     const newCapsules = await Capsule.countDocuments({
-//       createdAt: { $gte: oneMonthAgo }
-//     });
+    // Capsule statistics
+    const totalCapsules = await Capsule.countDocuments();
+    const publicCapsules = await Capsule.countDocuments({ isPublic: true });
+    const newCapsules = await Capsule.countDocuments({
+      createdAt: { $gte: oneMonthAgo }
+    });
     
-//     // Capsules created per day (last 30 days)
-//     const capsulesByDay = await Capsule.aggregate([
-//       { 
-//         $match: { 
-//           createdAt: { $gte: oneMonthAgo } 
-//         } 
-//       },
-//       {
-//         $group: {
-//           _id: { 
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" }, 
-//             day: { $dayOfMonth: "$createdAt" }
-//           },
-//           count: { $sum: 1 }
-//         }
-//       },
-//       { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
-//     ]);
+    // Capsules created per day (last 30 days)
+    const capsulesByDay = await Capsule.aggregate([
+      { 
+        $match: { 
+          createdAt: { $gte: oneMonthAgo } 
+        } 
+      },
+      {
+        $group: {
+          _id: { 
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }, 
+            day: { $dayOfMonth: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+    ]);
     
-//     // Format the daily data for charting
-//     const dailyCapsuleData = [];
-//     for (let i = 0; i < 30; i++) {
-//       const date = new Date();
-//       date.setDate(date.getDate() - i);
-//       const day = date.getDate();
-//       const month = date.getMonth() + 1;
-//       const year = date.getFullYear();
+    // Format the daily data for charting
+    const dailyCapsuleData = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
       
-//       const dataPoint = capsulesByDay.find(item => 
-//         item._id.day === day && 
-//         item._id.month === month && 
-//         item._id.year === year
-//       );
+      const dataPoint = capsulesByDay.find(item => 
+        item._id.day === day && 
+        item._id.month === month && 
+        item._id.year === year
+      );
       
-//       dailyCapsuleData.unshift({
-//         date: `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
-//         count: dataPoint ? dataPoint.count : 0
-//       });
-//     }
+      dailyCapsuleData.unshift({
+        date: `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
+        count: dataPoint ? dataPoint.count : 0
+      });
+    }
     
-//     // User registrations per month (last 6 months)
-//     const usersByMonth = await User.aggregate([
-//       { 
-//         $match: { 
-//           createdAt: { $gte: sixMonthsAgo } 
-//         } 
-//       },
-//       {
-//         $group: {
-//           _id: { 
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" }
-//           },
-//           count: { $sum: 1 }
-//         }
-//       },
-//       { $sort: { "_id.year": 1, "_id.month": 1 } }
-//     ]);
+    // User registrations per month (last 6 months)
+    const usersByMonth = await User.aggregate([
+      { 
+        $match: { 
+          createdAt: { $gte: sixMonthsAgo } 
+        } 
+      },
+      {
+        $group: {
+          _id: { 
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
     
-//     // Format the monthly data for charting
-//     const monthlyUserData = [];
-//     for (let i = 0; i < 6; i++) {
-//       const date = new Date();
-//       date.setMonth(date.getMonth() - i);
-//       const month = date.getMonth() + 1;
-//       const year = date.getFullYear();
+    // Format the monthly data for charting
+    const monthlyUserData = [];
+    for (let i = 0; i < 6; i++) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
       
-//       const dataPoint = usersByMonth.find(item => 
-//         item._id.month === month && 
-//         item._id.year === year
-//       );
+      const dataPoint = usersByMonth.find(item => 
+        item._id.month === month && 
+        item._id.year === year
+      );
       
-//       monthlyUserData.unshift({
-//         month: `${year}-${month.toString().padStart(2, '0')}`,
-//         count: dataPoint ? dataPoint.count : 0
-//       });
-//     }
+      monthlyUserData.unshift({
+        month: `${year}-${month.toString().padStart(2, '0')}`,
+        count: dataPoint ? dataPoint.count : 0
+      });
+    }
     
-//     // Most active users (by capsule count)
-//     const mostActiveUsers = await User.find()
-//       .sort({ capsuleCount: -1 })
-//       .limit(10)
-//       .select('name email profilePicture capsuleCount subscription role');
+    // Most active users (by capsule count)
+    const mostActiveUsers = await User.find()
+      .sort({ capsuleCount: -1 })
+      .limit(10)
+      .select('name email profilePicture capsuleCount subscription role');
     
-//     // Active user sessions (mock data - would be implemented with a real session tracking system)
-//     // This would typically come from a Redis store or similar for real-time tracking
-//     const activeSessionCount = Math.floor(Math.random() * 50) + 10; // Placeholder
+    // Active user sessions (mock data - would be implemented with a real session tracking system)
+    // This would typically come from a Redis store or similar for real-time tracking
+    const activeSessionCount = Math.floor(Math.random() * 50) + 10; // Placeholder
     
-//     res.json({
-//       success: true,
-//       data: {
-//         users: {
-//           total: totalUsers,
-//           new: newUsers,
-//           byRole: usersByRole,
-//           bySubscription: usersBySubscription,
-//           monthlyTrend: monthlyUserData,
-//           mostActive: mostActiveUsers
-//         },
-//         capsules: {
-//           total: totalCapsules,
-//           public: publicCapsules,
-//           new: newCapsules,
-//           dailyTrend: dailyCapsuleData
-//         },
-//         activeSessions: {
-//           current: activeSessionCount,
-//           peak: Math.floor(activeSessionCount * 1.5)
-//         },
-//         systemStatus: {
-//           healthy: true,
-//           errorRate: 0.2, // Percentage error rate (mock)
-//           avgResponseTime: 120 // ms (mock)
-//         }
-//       }
-//     });
-//   } catch (error) {
-//     logger.error('Error retrieving admin stats:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to retrieve admin statistics',
-//       error: error.message
-//     });
-//   }
-// };
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: totalUsers,
+          new: newUsers,
+          byRole: usersByRole,
+          bySubscription: usersBySubscription,
+          monthlyTrend: monthlyUserData,
+          mostActive: mostActiveUsers
+        },
+        capsules: {
+          total: totalCapsules,
+          public: publicCapsules,
+          new: newCapsules,
+          dailyTrend: dailyCapsuleData
+        },
+        activeSessions: {
+          current: activeSessionCount,
+          peak: Math.floor(activeSessionCount * 1.5)
+        },
+        systemStatus: {
+          healthy: true,
+          errorRate: 0.2, // Percentage error rate (mock)
+          avgResponseTime: 120 // ms (mock)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Error retrieving admin stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve admin statistics',
+      error: error.message
+    });
+  }
+};
 /**
  * @desc    Get dashboard statistics for admin
  * @route   GET /api/admin/stats
@@ -181,9 +185,7 @@ exports.getStats = async (req, res) => {
         total: 0,
         new: 0,
         byRole: [],
-        bySubscription: [],
-        monthlyTrend: [],
-        mostActive: []
+        bySubscription: []
       },
       capsules: {
         total: 0,
@@ -232,43 +234,25 @@ exports.getStats = async (req, res) => {
     
     // Users by subscription type with error handling
     try {
-      // Create a pipeline that handles both string and object subscriptions
-      const subscriptionPipeline = [
+      // Handle both string and object subscription types
+      statsData.users.bySubscription = await User.aggregate([
         {
           $project: {
-            subscriptionType: {
+            subscriptionName: {
               $cond: {
-                if: { $eq: [{ $type: "$subscription" }, "string"] },
-                then: "$subscription",
-                else: {
-                  $cond: {
-                    if: { $eq: [{ $type: "$subscription" }, "object"] },
-                    then: "$subscription.plan_name",
-                    else: "free"
-                  }
-                }
+                if: { $eq: [{ $type: "$subscription" }, "object"] },
+                then: "$subscription.plan_name",
+                else: "$subscription" // Use the string value directly
               }
             }
           }
         },
-        { 
-          $group: { 
-            _id: "$subscriptionType", 
-            count: { $sum: 1 } 
-          } 
-        },
+        { $group: { _id: "$subscriptionName", count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ];
-
-      statsData.users.bySubscription = await User.aggregate(subscriptionPipeline) || [];
-      
-      // Ensure we have at least a "free" category if no subscriptions found
-      if (statsData.users.bySubscription.length === 0) {
-        statsData.users.bySubscription = [{ _id: 'free', count: statsData.users.total }];
-      }
+      ]) || [];
     } catch (err) {
       logger.error('Error aggregating users by subscription:', err);
-      statsData.users.bySubscription = [{ _id: 'free', count: statsData.users.total }];
+      statsData.users.bySubscription = [];
     }
     
     // Capsule statistics with error handling
@@ -410,16 +394,6 @@ exports.getStats = async (req, res) => {
         .limit(10)
         .select('name email profilePicture capsuleCount subscription role')
         .lean() || [];
-        
-      // Convert subscription objects to strings for frontend compatibility
-      statsData.users.mostActive = statsData.users.mostActive.map(user => {
-        if (user.subscription && typeof user.subscription === 'object') {
-          user.subscription = user.subscription.plan_name || 'Free';
-        } else if (!user.subscription) {
-          user.subscription = 'Free';
-        }
-        return user;
-      });
     } catch (err) {
       logger.error('Error finding most active users:', err);
       statsData.users.mostActive = [];
@@ -429,12 +403,6 @@ exports.getStats = async (req, res) => {
     statsData.activeSessions.current = Math.floor(Math.random() * 50) + 10;
     statsData.activeSessions.peak = Math.floor(statsData.activeSessions.current * 1.5);
     
-    // System status (mock data)
-    statsData.systemStatus.healthy = true;
-    statsData.systemStatus.errorRate = parseFloat((Math.random() * 0.8).toFixed(2));
-    statsData.systemStatus.avgResponseTime = Math.floor(Math.random() * 50) + 200;
-    
-    // Return response in the format expected by the frontend
     res.json({
       success: true,
       data: statsData
@@ -448,337 +416,6 @@ exports.getStats = async (req, res) => {
     });
   }
 };
-/**
- * @desc    Get dashboard statistics for admin
- * @route   GET /api/admin/stats
- * @access  Private/Admin
- */
-// exports.getStats = async (req, res) => {
-//   try {
-//     const now = new Date();
-//     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-//     const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-//     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
-    
-//     // Initialize data structure with default values
-//     const statsData = {
-//       users: {
-//         total: 0,
-//         new: 0,
-//         byRole: [],
-//         bySubscription: []
-//       },
-//       capsules: {
-//         total: 0,
-//         public: 0,
-//         new: 0,
-//         dailyTrend: []
-//       },
-//       activeSessions: {
-//         current: 0,
-//         peak: 0
-//       },
-//       systemStatus: {
-//         healthy: true,
-//         errorRate: 0,
-//         avgResponseTime: 0
-//       }
-//     };
-    
-//     // Get user statistics with error handling
-//     try {
-//       statsData.users.total = await User.countDocuments() || 0;
-//     } catch (err) {
-//       logger.error('Error counting total users:', err);
-//       statsData.users.total = 0;
-//     }
-    
-//     try {
-//       statsData.users.new = await User.countDocuments({
-//         createdAt: { $gte: oneMonthAgo }
-//       }) || 0;
-//     } catch (err) {
-//       logger.error('Error counting new users:', err);
-//       statsData.users.new = 0;
-//     }
-    
-//     // Users by role distribution with error handling
-//     try {
-//       statsData.users.byRole = await User.aggregate([
-//         { $group: { _id: "$role", count: { $sum: 1 } } },
-//         { $sort: { count: -1 } }
-//       ]) || [];
-//     } catch (err) {
-//       logger.error('Error aggregating users by role:', err);
-//       statsData.users.byRole = [];
-//     }
-    
-//     // Users by subscription type with error handling
-//     try {
-//       // Handle both string and object subscription types
-//       statsData.users.bySubscription = await User.aggregate([
-//         {
-//           $project: {
-//             subscriptionName: {
-//               $cond: {
-//                 if: { $eq: [{ $type: "$subscription" }, "object"] },
-//                 then: "$subscription.plan_name",
-//                 else: "$subscription" // Use the string value directly
-//               }
-//             }
-//           }
-//         },
-//         { $group: { _id: "$subscriptionName", count: { $sum: 1 } } },
-//         { $sort: { count: -1 } }
-//       ]) || [];
-//     } catch (err) {
-//       logger.error('Error aggregating users by subscription:', err);
-//       statsData.users.bySubscription = [];
-//     }
-    
-//     // Capsule statistics with error handling
-//     try {
-//       statsData.capsules.total = await Capsule.countDocuments() || 0;
-//     } catch (err) {
-//       logger.error('Error counting total capsules:', err);
-//       statsData.capsules.total = 0;
-//     }
-    
-//     try {
-//       statsData.capsules.public = await Capsule.countDocuments({ isPublic: true }) || 0;
-//     } catch (err) {
-//       logger.error('Error counting public capsules:', err);
-//       statsData.capsules.public = 0;
-//     }
-    
-//     try {
-//       statsData.capsules.new = await Capsule.countDocuments({
-//         createdAt: { $gte: oneMonthAgo }
-//       }) || 0;
-//     } catch (err) {
-//       logger.error('Error counting new capsules:', err);
-//       statsData.capsules.new = 0;
-//     }
-    
-//     // Capsules created per day (last 30 days) with error handling
-//     try {
-//       const capsulesByDay = await Capsule.aggregate([
-//         { 
-//           $match: { 
-//             createdAt: { $gte: oneMonthAgo } 
-//           } 
-//         },
-//         {
-//           $group: {
-//             _id: { 
-//               year: { $year: "$createdAt" },
-//               month: { $month: "$createdAt" }, 
-//               day: { $dayOfMonth: "$createdAt" }
-//             },
-//             count: { $sum: 1 }
-//           }
-//         },
-//         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
-//       ]) || [];
-      
-//       // Format the daily data for charting
-//       statsData.capsules.dailyTrend = [];
-//       for (let i = 0; i < 30; i++) {
-//         const date = new Date();
-//         date.setDate(date.getDate() - i);
-//         const day = date.getDate();
-//         const month = date.getMonth() + 1;
-//         const year = date.getFullYear();
-        
-//         const dataPoint = capsulesByDay.find(item => 
-//           item._id && item._id.day === day && 
-//           item._id.month === month && 
-//           item._id.year === year
-//         );
-        
-//         statsData.capsules.dailyTrend.unshift({
-//           date: `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
-//           count: dataPoint ? dataPoint.count : 0
-//         });
-//       }
-//     } catch (err) {
-//       logger.error('Error aggregating capsules by day:', err);
-//       // Create empty daily trend data
-//       statsData.capsules.dailyTrend = Array.from({ length: 30 }, (_, i) => {
-//         const date = new Date();
-//         date.setDate(date.getDate() - i);
-//         return {
-//           date: date.toISOString().split('T')[0],
-//           count: 0
-//         };
-//       }).reverse();
-//     }
-    
-//     // User registrations per month (last 6 months) with error handling
-//     try {
-//       const usersByMonth = await User.aggregate([
-//         { 
-//           $match: { 
-//             createdAt: { $gte: sixMonthsAgo } 
-//           } 
-//         },
-//         {
-//           $group: {
-//             _id: { 
-//               year: { $year: "$createdAt" },
-//               month: { $month: "$createdAt" }
-//             },
-//             count: { $sum: 1 }
-//           }
-//         },
-//         { $sort: { "_id.year": 1, "_id.month": 1 } }
-//       ]) || [];
-      
-//       // Format the monthly data for charting
-//       const monthlyUserData = [];
-//       for (let i = 0; i < 6; i++) {
-//         const date = new Date();
-//         date.setMonth(date.getMonth() - i);
-//         const month = date.getMonth() + 1;
-//         const year = date.getFullYear();
-        
-//         const dataPoint = usersByMonth.find(item => 
-//           item._id && item._id.month === month && 
-//           item._id.year === year
-//         );
-        
-//         monthlyUserData.unshift({
-//           month: `${year}-${month.toString().padStart(2, '0')}`,
-//           count: dataPoint ? dataPoint.count : 0
-//         });
-//       }
-//       statsData.users.monthlyTrend = monthlyUserData;
-//     } catch (err) {
-//       logger.error('Error aggregating users by month:', err);
-//       // Create empty monthly trend data
-//       statsData.users.monthlyTrend = Array.from({ length: 6 }, (_, i) => {
-//         const date = new Date();
-//         date.setMonth(date.getMonth() - i);
-//         const month = date.getMonth() + 1;
-//         const year = date.getFullYear();
-//         return {
-//           month: `${year}-${month.toString().padStart(2, '0')}`,
-//           count: 0
-//         };
-//       }).reverse();
-//     }
-    
-//     // Most active users (by capsule count) with error handling
-//     try {
-//       statsData.users.mostActive = await User.find()
-//         .sort({ capsuleCount: -1 })
-//         .limit(10)
-//         .select('name email profilePicture capsuleCount subscription role')
-//         .lean() || [];
-//     } catch (err) {
-//       logger.error('Error finding most active users:', err);
-//       statsData.users.mostActive = [];
-//     }
-    
-//     // Active user sessions (mock data)
-//     statsData.activeSessions.current = Math.floor(Math.random() * 50) + 10;
-//     statsData.activeSessions.peak = Math.floor(statsData.activeSessions.current * 1.5);
-    
-//     res.json({
-//       success: true,
-//       data: statsData
-//     });
-//   } catch (error) {
-//     logger.error('Error retrieving admin stats:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to retrieve admin statistics',
-//       error: error.message
-//     });
-//   }
-// };
-/**
-
- * @desc    Get all users with filtering, pagination and search
- * @route   GET /api/admin/users
- * @access  Private/Admin
- */
-
-// exports.getUsers = async (req, res) => {
-//   try {
-//     const { 
-//       page = 1, 
-//       limit = 10, 
-//       search = '', 
-//       role, 
-//       subscription,
-//       verified,
-//       sortBy = 'createdAt',
-//       sortOrder = 'desc'
-//     } = req.query;
-    
-//     // Build filter object
-//     const filter = {};
-    
-//     // Add search filter (search by name or email)
-//     if (search) {
-//       filter.$or = [
-//         { name: { $regex: search, $options: 'i' } },
-//         { email: { $regex: search, $options: 'i' } }
-//       ];
-//     }
-    
-//     // Add role filter
-//     if (role) {
-//       filter.role = role;
-//     }
-    
-//     // Add subscription filter
-//     if (subscription) {
-//       filter['subscription.plan_name'] = subscription;
-//     }
-    
-//     // Add verified filter
-//     if (verified !== undefined) {
-//       filter.verified = verified === 'true';
-//     }
-    
-//     // Determine sort direction
-//     const sort = {};
-//     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    
-//     // Calculate pagination values
-//     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-//     // Get paginated users
-//     const users = await User.find(filter)
-//       .sort(sort)
-//       .skip(skip)
-//       .limit(parseInt(limit))
-//       .select('-password -verificationToken -passwordResetToken -passwordResetExpires');
-    
-//     // Get total count for pagination
-//     const total = await User.countDocuments(filter);
-    
-//     res.json({
-//       success: true,
-//       data: users,
-//       pagination: {
-//         total,
-//         page: parseInt(page),
-//         limit: parseInt(limit),
-//         pages: Math.ceil(total / parseInt(limit))
-//       }
-//     });
-//   } catch (error) {
-//     logger.error('Error retrieving users:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to retrieve users',
-//       error: error.message
-//     });
-//   }
-// };
 /**
  * @desc    Get all users with filtering, pagination and search
  * @route   GET /api/admin/users
@@ -813,15 +450,9 @@ exports.getUsers = async (req, res) => {
       filter.role = role;
     }
     
-    // Add subscription filter - handle both object and string subscriptions
+    // Add subscription filter
     if (subscription) {
-      filter.$or = filter.$or || [];
-      filter.$or.push(
-        // Match subscription as string
-        { subscription: subscription },
-        // Match subscription as object with plan_name
-        { 'subscription.plan_name': subscription }
-      );
+      filter['subscription.plan_name'] = subscription;
     }
     
     // Add verified filter
@@ -836,44 +467,19 @@ exports.getUsers = async (req, res) => {
     // Calculate pagination values
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get users as lean documents (plain JavaScript objects) to avoid Mongoose schema validation issues
+    // Get paginated users
     const users = await User.find(filter)
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-password -verificationToken -passwordResetToken -passwordResetExpires')
-      .lean();
-    
-    // Process users to handle subscription data
-    const processedUsers = users.map(user => {
-      // If subscription is a string, convert it to an object format
-      if (typeof user.subscription === 'string') {
-        const subscriptionValue = user.subscription;
-        user.subscription = {
-          plan_name: subscriptionValue.charAt(0).toUpperCase() + subscriptionValue.slice(1),
-          status: 'active',
-          subscribed_at: user.createdAt || new Date(),
-          payment_method: 'Default'
-        };
-      } else if (!user.subscription) {
-        // If subscription is null/undefined, set a default
-        user.subscription = {
-          plan_name: 'Free',
-          status: 'active',
-          subscribed_at: user.createdAt || new Date(),
-          payment_method: 'Default'
-        };
-      }
-      
-      return user;
-    });
+      .select('-password -verificationToken -passwordResetToken -passwordResetExpires');
     
     // Get total count for pagination
     const total = await User.countDocuments(filter);
     
     res.json({
       success: true,
-      data: processedUsers,
+      data: users,
       pagination: {
         total,
         page: parseInt(page),
@@ -890,6 +496,7 @@ exports.getUsers = async (req, res) => {
     });
   }
 };
+
 /**
  * @desc    Update user role
  * @route   PUT /api/admin/users/:id/role
@@ -1313,7 +920,11 @@ exports.updateSubscriptionPlan = async (req, res) => {
 //     });
 //   }
 // };
-
+/**
+ * @desc    Grant gift subscription to user
+ * @route   POST /api/admin/users/:id/gift-subscription
+ * @access  Private/Admin
+ */
 exports.giftSubscription = async (req, res) => {
   try {
     const { id } = req.params;
