@@ -12,7 +12,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start:render": "NODE_ENV=production PORT=10000 node server.js",
+    "start:render": "NODE_ENV=production PORT=10000 node server.js"
     
   },
   "engines": {
