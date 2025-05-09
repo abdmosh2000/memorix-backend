@@ -31,9 +31,10 @@ function encrypt(data, key = config.encryption.capsuleEncryptKey) {
     // Get authentication tag (for integrity verification)
     const authTag = cipher.getAuthTag();
     
-    // Combine IV, encrypted data, and auth tag into a single string
-    // Format: base64(iv):base64(authTag):base64(encryptedData)
-    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+  // Combine IV, encrypted data, and auth tag into a single string
+  // Format: base64(iv).base64(authTag).base64(encryptedData)
+  // Using '.' as separator instead of ':' to avoid conflicts with base64 data
+  return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted}`;
   } catch (error) {
     console.error('Encryption error:', error);
     throw new Error('Failed to encrypt data');
@@ -49,37 +50,83 @@ function encrypt(data, key = config.encryption.capsuleEncryptKey) {
  */
 function decrypt(encryptedData, key = config.encryption.capsuleEncryptKey, parseJson = false) {
   try {
-    // Split the encrypted data into its components
-    const [ivBase64, authTagBase64, encryptedBase64] = encryptedData.split(':');
+    // Check for old format (':' separator) and new format ('.' separator)
+    let ivBase64, authTagBase64, encryptedBase64;
     
-    // Convert components from base64
-    const iv = Buffer.from(ivBase64, 'base64');
-    const authTag = Buffer.from(authTagBase64, 'base64');
-    const encrypted = encryptedBase64;
-    
-    // Create decipher
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      Buffer.from(key.padEnd(32).slice(0, 32)), // Ensure key is exactly 32 bytes
-      iv
-    );
-    
-    // Set auth tag for authenticated decryption
-    decipher.setAuthTag(authTag);
-    
-    // Decrypt the data
-    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    // Parse as JSON if requested
-    if (parseJson) {
-      return JSON.parse(decrypted);
+    if (encryptedData.includes('.')) {
+      // New format with '.' separator
+      const parts = encryptedData.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid encrypted data format');
+      }
+      [ivBase64, authTagBase64, encryptedBase64] = parts;
+    } else {
+      // Legacy format with ':' separator (backward compatibility)
+      // This is more complex as ':' could appear in base64 encoded data
+      try {
+        // Try to split by the first two occurrences of ':'
+        const firstSeparatorIndex = encryptedData.indexOf(':');
+        if (firstSeparatorIndex === -1) {
+          throw new Error('Invalid encrypted data format');
+        }
+        
+        const secondSeparatorIndex = encryptedData.indexOf(':', firstSeparatorIndex + 1);
+        if (secondSeparatorIndex === -1) {
+          throw new Error('Invalid encrypted data format');
+        }
+        
+        ivBase64 = encryptedData.substring(0, firstSeparatorIndex);
+        authTagBase64 = encryptedData.substring(firstSeparatorIndex + 1, secondSeparatorIndex);
+        encryptedBase64 = encryptedData.substring(secondSeparatorIndex + 1);
+      } catch (error) {
+        console.error('Error parsing encrypted data:', error);
+        throw new Error('Failed to parse encrypted data');
+      }
     }
     
-    return decrypted;
+    // Convert components from base64 with error handling
+    try {
+      // Validate iv length (should be 16 bytes when decoded)
+      const iv = Buffer.from(ivBase64, 'base64');
+      if (iv.length !== 16) {
+        throw new Error(`Invalid IV length: ${iv.length} bytes`);
+      }
+      
+      // Validate authTag length (should be 16 bytes for GCM mode)
+      const authTag = Buffer.from(authTagBase64, 'base64');
+      if (authTag.length !== 16) {
+        throw new Error(`Invalid authTag length: ${authTag.length} bytes`);
+      }
+      
+      const encrypted = encryptedBase64;
+    
+      // Create decipher
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        Buffer.from(key.padEnd(32).slice(0, 32)), // Ensure key is exactly 32 bytes
+        iv
+      );
+      
+      // Set auth tag for authenticated decryption
+      decipher.setAuthTag(authTag);
+    
+      // Decrypt the data
+      let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+      decrypted += decipher.final('utf8');
+    
+      // Parse as JSON if requested
+      if (parseJson) {
+        return JSON.parse(decrypted);
+      }
+      
+      return decrypted;
+    } catch (error) {
+      console.error('Decryption component error:', error);
+      throw new Error(`Failed to decrypt data: ${error.message}`);
+    }
   } catch (error) {
     console.error('Decryption error:', error);
-    throw new Error('Failed to decrypt data');
+    throw new Error(`Failed to decrypt data: ${error.message}`);
   }
 }
 

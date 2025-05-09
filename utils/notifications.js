@@ -11,7 +11,7 @@ const emailService = require('./emailService');
  * @param {string} capsuleTitle - Title of the capsule
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
- * @param {string} mediaContent - Optional media content
+ * @param {string} mediaContent - Optional media content (base64 encoded)
  * @param {string} mediaType - Type of media content
  * @returns {Promise<boolean>} - Success status
  */
@@ -27,6 +27,7 @@ const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, m
             null, // No creator name needed for creator notification
             releaseDate,
             content,
+            mediaContent, // Pass the media content to the email service
             mediaType,
             true // This is the creator notification
         );
@@ -44,7 +45,7 @@ const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, m
  * @param {string} creatorName - Name of the capsule creator
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
- * @param {string} mediaContent - Optional media content 
+ * @param {string} mediaContent - Optional media content (base64 encoded)
  * @param {string} mediaType - Type of media content
  * @returns {Promise<boolean>} - Success status
  */
@@ -60,6 +61,7 @@ const notifyCapsuleRecipient = async (recipientEmail, capsuleTitle, creatorName,
             creatorName, 
             releaseDate,
             content,
+            mediaContent, // Pass the media content to the email service
             mediaType,
             false // This is not the creator notification
         );

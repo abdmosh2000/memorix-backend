@@ -265,11 +265,12 @@ async function sendWelcomeEmail(email, name) {
  * @param {string} creatorName - Name of the creator (optional for creator notifications)
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
+ * @param {string} mediaContent - Decrypted media content (base64-encoded)
  * @param {string} mediaType - Type of media (photo, video, audio) if any
  * @param {boolean} isCreator - Whether the recipient is the creator
  * @returns {Promise<Object>} - Email send result
  */
-async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, mediaType, isCreator) {
+async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, mediaContent, mediaType, isCreator) {
   // Format the release date in a readable format
   const formattedReleaseDate = new Date(releaseDate).toLocaleDateString('en-US', {
     year: 'numeric', 
@@ -279,18 +280,65 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
     minute: '2-digit'
   });
   
-  // Truncate content if it's very long (for email readability)
-  const truncatedContent = content && content.length > 1500 
-    ? content.substring(0, 1500) + '...(content continues in your account)' 
-    : content || 'No text content';
+  // Ensure content is displayed properly (never truncated)
+  const formattedContent = content || 'No text content';
   
+  // Handle media content based on type
   let mediaSection = '';
-  if (mediaType) {
-    mediaSection = `
-      <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <p><strong>Media Content:</strong> This capsule includes ${mediaType} content that you can view by logging into your Memorix account.</p>
-      </div>
-    `;
+  if (mediaContent && mediaType) {
+    // Determine how to embed the media based on its type
+    if (mediaType === 'photo') {
+      // For photos, we can directly embed the base64 data in the email
+      mediaSection = `
+        <div style="margin: 20px 0;">
+          <h3 style="color: #333; margin-top: 0;">Photo Memory:</h3>
+          <div style="text-align: center;">
+            <img src="${mediaContent}" alt="Memory Photo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+          </div>
+        </div>
+      `;
+    } else if (mediaType === 'video') {
+      // For video, provide a video element with the embedded content
+      // Note: Not all email clients support video playback
+      mediaSection = `
+        <div style="margin: 20px 0;">
+          <h3 style="color: #333; margin-top: 0;">Video Memory:</h3>
+          <div style="text-align: center;">
+            <video controls width="100%" style="max-width: 500px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+              <source src="${mediaContent}" type="video/mp4">
+              Your email client doesn't support video playback. Please log in to view the video content.
+            </video>
+          </div>
+          <p style="text-align: center; font-style: italic; margin-top: 10px;">
+            Note: If video doesn't play, you can view it by logging into your Memorix account.
+          </p>
+        </div>
+      `;
+    } else if (mediaType === 'audio') {
+      // For audio, provide an audio element with the embedded content
+      // Note: Not all email clients support audio playback
+      mediaSection = `
+        <div style="margin: 20px 0;">
+          <h3 style="color: #333; margin-top: 0;">Audio Memory:</h3>
+          <div style="text-align: center;">
+            <audio controls style="width: 100%; max-width: 400px; margin: 0 auto;">
+              <source src="${mediaContent}" type="audio/mpeg">
+              Your email client doesn't support audio playback. Please log in to view the audio content.
+            </audio>
+          </div>
+          <p style="text-align: center; font-style: italic; margin-top: 10px;">
+            Note: If audio doesn't play, you can listen to it by logging into your Memorix account.
+          </p>
+        </div>
+      `;
+    } else {
+      // Fallback for unsupported media types
+      mediaSection = `
+        <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <p><strong>Media Content:</strong> This capsule includes ${mediaType} content. For the best experience, please log into your Memorix account to view it.</p>
+        </div>
+      `;
+    }
   }
   
   const creatorSection = isCreator 
@@ -298,28 +346,31 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
     : `<p>${creatorName} has shared a time capsule with you that has now been released.</p>`;
   
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+    <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #fcfcfc;">
       <div style="text-align: center; margin-bottom: 20px;">
         <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Time Capsule Released!</h2>
-      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
-        <p style="font-size: 18px; margin: 0; text-align: center;">
-          <span style="display: block; font-weight: bold; margin-bottom: 5px;">"${capsuleTitle}"</span>
+      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 6px rgba(142, 68, 173, 0.1);">
+        <p style="font-size: 20px; margin: 0; text-align: center;">
+          <span style="display: block; font-weight: bold; margin-bottom: 8px; color: #8E44AD;">"${capsuleTitle}"</span>
           Released on ${formattedReleaseDate}
         </p>
       </div>
       ${creatorSection}
-      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <h3 style="color: #333; margin-top: 0;">Capsule Content:</h3>
-        <div style="white-space: pre-wrap; font-family: Arial, sans-serif; color: #333;">
-          ${truncatedContent}
+      
+      ${mediaSection}
+      
+      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);">
+        <h3 style="color: #333; margin-top: 0; border-bottom: 2px solid #8E44AD; padding-bottom: 8px;">Memory Content:</h3>
+        <div style="white-space: pre-wrap; font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
+          ${formattedContent}
         </div>
       </div>
-      ${mediaSection}
+      
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          View Full Capsule
+        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 3px 6px rgba(142, 68, 173, 0.2);">
+          View in Memorix App
         </a>
       </div>
       <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
