@@ -2,7 +2,7 @@ const app = require('./app');
 const { checkPort, logEnvironmentInfo } = require('./checkPort');
 
 // Get port from environment or use default
-const PORT = parseInt(process.env.PORT || 5000, 10);
+const PORT = parseInt(process.env.PORT || 10000, 10);
 
 // Root endpoint to verify API is working
 app.get("/", (req, res) => {
