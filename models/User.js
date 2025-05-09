@@ -116,46 +116,67 @@ userSchema.pre('save', async function (next) {
     next();
 });
 
-// Handle subscription field to ensure it's always an object
-userSchema.pre('save', function(next) {
-    // If subscription is a string (like 'free', 'premium', 'vip'), convert it to proper object
-    if (typeof this.subscription === 'string') {
-        console.log(`Converting string subscription '${this.subscription}' to object`);
-        const subscriptionType = this.subscription;
+// Function to convert string subscriptions to objects
+function convertSubscriptionToObject(subscription) {
+    if (typeof subscription === 'string') {
+        const subscriptionType = subscription.toLowerCase();
         
         // Convert the plan name to proper case
         const planName = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
         
         // Determine status and expiry based on plan type
-        const status = subscriptionType === 'vip' ? 'lifetime' : 'active';
-        const expiryDate = (subscriptionType === 'free' || subscriptionType === 'vip') 
+        const status = subscriptionType === 'vip' || subscriptionType === 'lifetime' ? 'lifetime' : 'active';
+        const expiryDate = (subscriptionType === 'free' || subscriptionType === 'vip' || subscriptionType === 'lifetime') 
             ? null 
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for paid non-lifetime
         
-        // Set the subscription object
-        this.subscription = {
+        // Return the subscription object
+        return {
             plan_name: planName,
             subscribed_at: new Date(),
             payment_method: 'None',
             status: status,
             expiry_date: expiryDate
         };
-        
-        console.log('Converted subscription to:', this.subscription);
     }
     
-    // Ensure the subscription has default values if it's an empty object
-    if (this.subscription === null || (typeof this.subscription === 'object' && Object.keys(this.subscription).length === 0)) {
-        console.log('Empty subscription object detected, setting defaults');
-        this.subscription = {
-            plan_name: 'Free',
-            subscribed_at: new Date(),
-            payment_method: 'None',
-            status: 'active',
-            expiry_date: null
-        };
+    // Return the subscription if it's already an object
+    if (subscription && typeof subscription === 'object') {
+        return subscription;
     }
     
+    // Return default subscription if null or undefined
+    return {
+        plan_name: 'Free',
+        subscribed_at: new Date(),
+        payment_method: 'None',
+        status: 'active',
+        expiry_date: null
+    };
+}
+
+// Define schema setter for subscription
+userSchema.path('subscription').set(function(value) {
+    return convertSubscriptionToObject(value);
+});
+
+// Handle subscription field to ensure it's always an object
+userSchema.pre('save', function(next) {
+    // Convert string subscription to object if needed
+    this.subscription = convertSubscriptionToObject(this.subscription);
+    next();
+});
+
+// Also handle subscription for findOneAndUpdate and findByIdAndUpdate
+userSchema.pre('findOneAndUpdate', function(next) {
+    const update = this.getUpdate();
+    if (update && update.$set && update.$set.subscription) {
+        update.$set.subscription = convertSubscriptionToObject(update.$set.subscription);
+    }
+    
+    if (update && update.subscription) {
+        update.subscription = convertSubscriptionToObject(update.subscription);
+    }
     next();
 });
 
