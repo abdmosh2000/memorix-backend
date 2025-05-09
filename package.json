@@ -11,7 +11,12 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "start:render": "NODE_ENV=production PORT=10000 node server.js",
+    "debug:ports": "node -e \"require('./checkPort').logEnvironmentInfo(); console.log(require('os').networkInterfaces())\""
+  },
+  "engines": {
+    "node": ">=16.x"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
