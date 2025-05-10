@@ -1,4 +1,4 @@
-# Render deployment configuration file for backend service
+# Simple Render configuration file for backend service
 
 services:
   # Backend service
@@ -6,23 +6,22 @@ services:
     name: memorix-backend
     env: node
     buildCommand: npm install
-    startCommand: npm  start
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000  # Explicitly set a port for Render
+        value: 10000
       - key: FRONTEND_URL
-        value: https://memorix.fun   # Set to your frontend domain
+        value: https://memorix.fun
       - key: MONGO_URI
         fromDatabase:
           name: memorix-db
           property: connectionString
-    plan: starter  # Choose the appropriate plan based on your needs
+    plan: starter
 
-# Add database if needed
 databases:
   - name: memorix-db
     databaseName: memorix
-    plan: starter # Choose the appropriate database plan
+    plan: starter
