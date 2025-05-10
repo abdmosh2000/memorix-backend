@@ -451,9 +451,12 @@ exports.getUsers = async (req, res) => {
       filter.role = role;
     }
     
-    // Add subscription filter
+    // Add subscription filter - handle both object and string subscription types
     if (subscription) {
-      filter['subscription.plan_name'] = subscription;
+      filter.$or = [
+        { 'subscription.plan_name': subscription },
+        { subscription: subscription.toLowerCase() }
+      ];
     }
     
     // Add verified filter
@@ -473,14 +476,31 @@ exports.getUsers = async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-password -verificationToken -passwordResetToken -passwordResetExpires');
+      .select('-password -verificationToken -passwordResetToken -passwordResetExpires')
+      .lean(); // Use lean() to get plain JavaScript objects instead of Mongoose documents
+    
+    // Process users to ensure subscription is always an object
+    const processedUsers = users.map(user => {
+      // If subscription is a string, convert it to an object format
+      if (typeof user.subscription === 'string') {
+        const subscriptionType = user.subscription;
+        user.subscription = {
+          plan_name: subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+          status: subscriptionType === 'vip' ? 'lifetime' : 'active',
+          payment_method: 'None',
+          subscribed_at: new Date(),
+          expiry_date: null
+        };
+      }
+      return user;
+    });
     
     // Get total count for pagination
     const total = await User.countDocuments(filter);
     
     res.json({
       success: true,
-      data: users,
+      data: processedUsers,
       pagination: {
         total,
         page: parseInt(page),
