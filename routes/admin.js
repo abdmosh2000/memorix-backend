@@ -37,6 +37,13 @@ router.get('/subscriptions', protect, admin, adminController.getSubscriptionPlan
 router.put('/subscriptions/:id', protect, headAdmin, adminController.updateSubscriptionPlan);
 
 /**
+ * Content Management
+ * GET /api/admin/capsules - Get all capsules with filtering
+ * Access: Private/Admin
+ */
+router.get('/capsules', protect, admin, adminController.getAdminCapsules);
+
+/**
  * System Logs
  * GET /api/admin/logs - Get system logs
  * Access: Private/Admin

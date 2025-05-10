@@ -1112,6 +1112,101 @@ exports.giftSubscription = async (req, res) => {
   }
 };
 /**
+ * @desc    Get all capsules with filtering, pagination and search for admin
+ * @route   GET /api/admin/capsules
+ * @access  Private/Admin
+ */
+exports.getAdminCapsules = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      public: isPublic,
+      featured,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+    
+    // Build filter object
+    const filter = {};
+    
+    // Add search filter (search by title or content)
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Add public filter
+    if (isPublic !== undefined) {
+      filter.isPublic = isPublic === 'true';
+    }
+    
+    // Add featured filter
+    if (featured !== undefined) {
+      filter.featured = featured === 'true';
+    }
+    
+    // Determine sort direction
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+    // Calculate pagination values
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get paginated capsules with populated user data
+    const capsules = await Capsule.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate({
+        path: 'user',
+        select: 'name email profilePicture subscription'
+      })
+      .lean(); // Use lean() to get plain JavaScript objects instead of Mongoose documents
+    
+    // Process capsules to ensure user subscription is always an object
+    const processedCapsules = capsules.map(capsule => {
+      // If capsule has user data and subscription is a string, convert it to an object format
+      if (capsule.user && typeof capsule.user.subscription === 'string') {
+        const subscriptionType = capsule.user.subscription;
+        capsule.user.subscription = {
+          plan_name: subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+          status: subscriptionType === 'vip' ? 'lifetime' : 'active',
+          payment_method: 'None',
+          subscribed_at: new Date(),
+          expiry_date: null
+        };
+      }
+      return capsule;
+    });
+    
+    // Get total count for pagination
+    const total = await Capsule.countDocuments(filter);
+    
+    res.json({
+      success: true,
+      capsules: processedCapsules,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    logger.error('Error retrieving admin capsules:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve capsules',
+      error: error.message
+    });
+  }
+};
+
+/**
  * @desc    Get system logs
  * @route   GET /api/admin/logs
  * @access  Private/Admin
