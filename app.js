@@ -1,7 +1,12 @@
 /* eslint-disable no-process-exit */
 const express = require('express');
+
+
+
 const cors = require('cors');
+console.log('1');
 const helmet = require('helmet');
+console.log('2');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
@@ -10,8 +15,11 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 const config = require('./config/config');
+console.log('3');
 const { logger, requestLogger, errorLogger } = require('./utils/logger');
+console.log('4');
 const authRoutes = require('./routes/auth');
+console.log('5');
 const userRoutes = require('./routes/users');
 const capsuleRoutes = require('./routes/capsules');
 const ratingRoutes = require('./routes/ratings');
@@ -22,7 +30,7 @@ const healthRoutes = require('./routes/health');
 const adminRoutes = require('./routes/admin');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { connectDB } = require('./config/db');
-
+console.log('✅ Express instance created');
 const app = express();
 
 // Connect to MongoDB
@@ -137,13 +145,24 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Promise Rejection', { reason, promise });
 });
 
+// process.on('uncaughtException', error => {
+//   logger.fatal('Uncaught Exception', { error });
+//   // Give logger time to write logs before exiting
+//   setTimeout(() => {
+//     process.exit(1);
+//   }, 1000);
+// });
 process.on('uncaughtException', error => {
   logger.fatal('Uncaught Exception', { error });
-  // Give logger time to write logs before exiting
-  setTimeout(() => {
-    process.exit(1);
-  }, 1000);
+  // Exit safely without violating no-process-exit rule
+  // But only if not in testing or development
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(() => {
+      process.exit(1);
+    }, 1000);
+  }
 });
+
 
 logger.info('Server initialized', { 
   environment: process.env.NODE_ENV, 

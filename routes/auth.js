@@ -1,15 +1,19 @@
+console.log('1');
 const express = require('express');
+console.log('1');
 const router = express.Router();
+console.log('1');
 const { 
-    registerUser, 
-    loginUser, 
-    logoutUser, 
-    getUserProfile, 
-    verifyEmail, 
-    resendVerification,
-    forgotPassword,
-    resetPassword
+  registerUser, 
+  loginUser, 
+  logoutUser, 
+  getUserProfile, 
+  verifyEmail, 
+  resendVerification,
+  forgotPassword,
+  resetPassword
 } = require('../controllers/authController');
+console.log('2');
 const { protect } = require('../middleware/authMiddleware');
 
 // Registration and authentication

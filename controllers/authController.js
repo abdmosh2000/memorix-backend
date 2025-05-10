@@ -1,5 +1,6 @@
-/* eslint-disable prefer-const */
+console.log('3');/* eslint-disable prefer-const */
 const User = require('../models/User');
+console.log('11');
 const crypto = require('crypto');
 const generateToken = require('../utils/generateToken');
 const emailService = require('../utils/emailService');

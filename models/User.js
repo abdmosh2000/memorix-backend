@@ -1,7 +1,10 @@
-/* eslint-disable no-useless-escape */
+console.log('19');/* eslint-disable no-useless-escape */
 const mongoose = require('mongoose');
+console.log('122');
 const bcrypt = require('bcryptjs');
+console.log('2222');
 const crypto = require('crypto');
+console.log('324');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -105,7 +108,7 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 });
-
+console.log('ضضضض');
 // Hash password before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
@@ -116,12 +119,12 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
-
+console.log('1ؤءر');
 // Function to convert string subscriptions to objects
 function convertSubscriptionToObject(subscription) {
   // Log the incoming subscription value for debugging
   console.log('Converting subscription:', subscription, 'Type:', typeof subscription);
-    
+  
   // Handle string values
   if (typeof subscription === 'string') {
     const subscriptionType = subscription.toLowerCase();
@@ -174,29 +177,94 @@ function convertSubscriptionToObject(subscription) {
     expiry_date: null
   };
 }
-
-// Define schema setter for subscription
-userSchema.path('subscription').set(function(value) {
-  return convertSubscriptionToObject(value);
-});
-
+console.log('first console log');
+// Since we can't directly use a setter on a nested path, we'll rely solely on the pre hooks
+// to ensure the subscription field is always in the correct format
+console.log('Pre hooks are more reliable for this complex schema');
+console.log('second console test');
 // Handle subscription field to ensure it's always an object
 userSchema.pre('save', function(next) {
-  // Convert string subscription to object if needed
-  this.subscription = convertSubscriptionToObject(this.subscription);
+  console.log('Pre-save hook running for user:', this.email);
+  console.log('Initial subscription value:', this.subscription);
+  
+  // Special handling for string values directly assigned to subscription
+  if (typeof this.subscription === 'string') {
+    console.log('Found string subscription in pre-save hook, converting:', this.subscription);
+    // Use a try-catch since this is critical functionality
+    try {
+      this.subscription = convertSubscriptionToObject(this.subscription);
+      console.log('Successfully converted to:', this.subscription);
+    } catch (error) {
+      console.error('Error converting subscription in pre-save hook:', error);
+      // Fallback to a default value
+      this.subscription = {
+        plan_name: 'Free',
+        subscribed_at: new Date(),
+        payment_method: 'None',
+        status: 'active',
+        expiry_date: null
+      };
+      console.log('Using fallback subscription value:', this.subscription);
+    }
+  } else if (!this.subscription) {
+    console.log('No subscription found, setting default');
+    this.subscription = {
+      plan_name: 'Free',
+      subscribed_at: new Date(),
+      payment_method: 'None',
+      status: 'active',
+      expiry_date: null
+    };
+  }
+  
   next();
 });
 
 // Also handle subscription for findOneAndUpdate and findByIdAndUpdate
 userSchema.pre('findOneAndUpdate', function(next) {
+  console.log('findOneAndUpdate hook running');
   const update = this.getUpdate();
+  
+  // Handle $set operator
   if (update && update.$set && update.$set.subscription) {
-    update.$set.subscription = convertSubscriptionToObject(update.$set.subscription);
+    console.log('Found subscription in $set:', update.$set.subscription);
+    const originalValue = update.$set.subscription;
+    try {
+      update.$set.subscription = convertSubscriptionToObject(update.$set.subscription);
+      console.log('Converted $set.subscription from', originalValue, 'to', update.$set.subscription);
+    } catch (error) {
+      console.error('Error converting $set.subscription:', error);
+      // Set a default value if conversion fails
+      update.$set.subscription = {
+        plan_name: 'Free',
+        subscribed_at: new Date(),
+        payment_method: 'None',
+        status: 'active',
+        expiry_date: null
+      };
+    }
   }
-    
+  
+  // Handle direct update
   if (update && update.subscription) {
-    update.subscription = convertSubscriptionToObject(update.subscription);
+    console.log('Found direct subscription update:', update.subscription);
+    const originalValue = update.subscription;
+    try {
+      update.subscription = convertSubscriptionToObject(update.subscription);
+      console.log('Converted direct subscription from', originalValue, 'to', update.subscription);
+    } catch (error) {
+      console.error('Error converting direct subscription:', error);
+      // Set a default value if conversion fails
+      update.subscription = {
+        plan_name: 'Free',
+        subscribed_at: new Date(),
+        payment_method: 'None',
+        status: 'active',
+        expiry_date: null
+      };
+    }
   }
+  
   next();
 });
 
