@@ -121,7 +121,7 @@ app.use(hpp());
 
 // Data sanitization against XSS
 app.use(xss());
-
+app.use(express.static('public'));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
