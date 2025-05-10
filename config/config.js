@@ -7,7 +7,7 @@ const env = process.env.NODE_ENV || 'development';
 const baseConfig = {
   // Server settings
   server: {
-    port: process.env.PORT || 5000,
+    port: process.env.PORT || 10000,
     env: env
   },
   
@@ -17,19 +17,19 @@ const baseConfig = {
     allowedOrigins: process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',')
       : [
-          'http://localhost:3000',          // Local development
-          'https://memorix.fun',            // Main domain
-          'https://*.memorix.fun',          // All subdomains
-          'https://memorix-app.godaddysites.com', // Default GoDaddy domain pattern
-          'https://*.godaddysites.com',     // Any GoDaddy subdomain
-          process.env.GODADDY_DOMAIN || '' // User's custom GoDaddy domain
-        ].filter(Boolean) // Remove empty strings
+        'http://localhost:3000',          // Local development
+        'https://memorix.fun',            // Main domain
+        'https://*.memorix.fun',          // All subdomains
+        'https://memorix-app.godaddysites.com', // Default GoDaddy domain pattern
+        'https://*.godaddysites.com',     // Any GoDaddy subdomain
+        process.env.GODADDY_DOMAIN || '' // User's custom GoDaddy domain
+      ].filter(Boolean) // Remove empty strings
   },
   
   // Email settings
   email: {
     from: process.env.EMAIL_FROM || 'Memorix <no-reply@memorix.fun>',
-    resendApiKey: process.env.RESEND_API_KEY || 're_gzsvPCdQ_MD8UtQpXBvvoXqZeQcrgajTG',
+    resendApiKey: process.env.RESEND_API_KEY || 're_gzsvPCdQ_MD8UtQpXBvvoXqZeQcrgajTG'
     // Different templates for different email types could be configured here
   },
   
@@ -47,7 +47,7 @@ const baseConfig = {
   // Encryption keys and settings
   encryption: {
     saltRounds: 10,
-    capsuleEncryptKey: process.env.CAPSULE_ENCRYPT_KEY || 'memorix-capsule-encryption-key-2025',
+    capsuleEncryptKey: process.env.CAPSULE_ENCRYPT_KEY || 'memorix-capsule-encryption-key-2025'
     // For more secure production, use a strong key stored in environment variables
   },
   

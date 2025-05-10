@@ -59,6 +59,13 @@ module.exports = {
       rules: {
         'node/no-unpublished-require': 'off'
       }
+    },
+    {
+      // Script files that need to use process.exit()
+      files: ['scripts/**/*.js', 'server.js'],
+      rules: {
+        'node/no-process-exit': 'off'
+      }
     }
   ]
 };

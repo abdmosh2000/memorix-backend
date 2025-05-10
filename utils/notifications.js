@@ -16,26 +16,26 @@ const emailService = require('./emailService');
  * @returns {Promise<boolean>} - Success status
  */
 const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, mediaContent, mediaType) => {
-    const subject = 'Your Memorix Capsule has been released';
+  const subject = 'Your Memorix Capsule has been released';
     
-    try {
-        // Use the new emailService function to send formatted HTML email with content
-        await emailService.sendCapsuleReleasedNotification(
-            email, 
-            subject,
-            capsuleTitle,
-            null, // No creator name needed for creator notification
-            releaseDate,
-            content,
-            mediaContent, // Pass the media content to the email service
-            mediaType,
-            true // This is the creator notification
-        );
-        return true;
-    } catch (error) {
-        console.error('Error sending capsule release notification to creator:', error);
-        return false;
-    }
+  try {
+    // Use the new emailService function to send formatted HTML email with content
+    await emailService.sendCapsuleReleasedNotification(
+      email, 
+      subject,
+      capsuleTitle,
+      null, // No creator name needed for creator notification
+      releaseDate,
+      content,
+      mediaContent, // Pass the media content to the email service
+      mediaType,
+      true // This is the creator notification
+    );
+    return true;
+  } catch (error) {
+    console.error('Error sending capsule release notification to creator:', error);
+    return false;
+  }
 };
 
 /**
@@ -50,29 +50,29 @@ const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, m
  * @returns {Promise<boolean>} - Success status
  */
 const notifyCapsuleRecipient = async (recipientEmail, capsuleTitle, creatorName, releaseDate, content, mediaContent, mediaType) => {
-    const subject = 'A Memorix Capsule has been shared with you';
+  const subject = 'A Memorix Capsule has been shared with you';
     
-    try {
-        // Use the new emailService function to send formatted HTML email with content
-        await emailService.sendCapsuleReleasedNotification(
-            recipientEmail, 
-            subject,
-            capsuleTitle,
-            creatorName, 
-            releaseDate,
-            content,
-            mediaContent, // Pass the media content to the email service
-            mediaType,
-            false // This is not the creator notification
-        );
-        return true;
-    } catch (error) {
-        console.error('Error sending capsule release notification to recipient:', error);
-        return false;
-    }
+  try {
+    // Use the new emailService function to send formatted HTML email with content
+    await emailService.sendCapsuleReleasedNotification(
+      recipientEmail, 
+      subject,
+      capsuleTitle,
+      creatorName, 
+      releaseDate,
+      content,
+      mediaContent, // Pass the media content to the email service
+      mediaType,
+      false // This is not the creator notification
+    );
+    return true;
+  } catch (error) {
+    console.error('Error sending capsule release notification to recipient:', error);
+    return false;
+  }
 };
 
 module.exports = {
-    notifyCapsuleCreator,
-    notifyCapsuleRecipient
+  notifyCapsuleCreator,
+  notifyCapsuleRecipient
 };

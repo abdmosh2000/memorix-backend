@@ -1,6 +1,12 @@
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY || 're_gzsvPCdQ_MD8UtQpXBvvoXqZeQcrgajTG');
 const config = require('../config/config');
+
+// Initialize Resend with API key from config
+console.log('Initializing Resend email service');
+const resendApiKey = process.env.RESEND_API_KEY || config.email.resendApiKey;
+console.log('Using API Key:', resendApiKey ? 'API key is set' : 'API key is missing');
+
+const resend = new Resend(resendApiKey);
 
 /**
  * Send an email using Resend
@@ -26,7 +32,7 @@ async function sendEmail(options) {
         to: to,
         subject: subject,
         html: html,
-        text: text || stripHtml(html),
+        text: text || stripHtml(html)
       });
       
       console.log(`Email sent successfully to ${to}, ID: ${data.id}`);
@@ -98,7 +104,7 @@ async function sendVerificationEmail(email, name, token) {
   
   return sendEmail({
     to: email,
-    subject: "Please verify your email address",
+    subject: 'Please verify your email address',
     html: html
   });
 }
@@ -139,7 +145,7 @@ async function sendPasswordResetEmail(email, name, token) {
   
   return sendEmail({
     to: email,
-    subject: "Reset your password",
+    subject: 'Reset your password',
     html: html
   });
 }
@@ -252,7 +258,7 @@ async function sendWelcomeEmail(email, name) {
   
   return sendEmail({
     to: email,
-    subject: "Welcome to Memorix!",
+    subject: 'Welcome to Memorix!',
     html: html
   });
 }

@@ -1,3 +1,4 @@
+/* eslint-disable no-process-exit */
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -62,19 +63,19 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://memorix.fun", "https://*.godaddysites.com", "*"], 
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https://memorix.fun', 'https://*.godaddysites.com', '*'], 
       connectSrc: [
         "'self'", 
-        "https://api.memorix.fun", 
-        "wss://api.memorix.fun",
-        "https://memorix-backend-wn9o.onrender.com",
-        "https://*.memorix.fun",
-        "https://*.godaddysites.com",
-        "*"  // Allow all connections for health checks - can be restricted later
+        'https://api.memorix.fun', 
+        'wss://api.memorix.fun',
+        'https://memorix-backend-wn9o.onrender.com',
+        'https://*.memorix.fun',
+        'https://*.godaddysites.com',
+        '*'  // Allow all connections for health checks - can be restricted later
       ],
-      frameSrc: ["'self'", "https://*.godaddysites.com"],
+      frameSrc: ["'self'", 'https://*.godaddysites.com'],
       objectSrc: ["'none'"],
       // Only enable upgradeInsecureRequests in production
       ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: [] } : {})
@@ -98,9 +99,9 @@ app.use(requestLogger);
 
 // Rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes'
 });
 app.use(limiter);
 
@@ -136,7 +137,7 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Promise Rejection', { reason, promise });
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.fatal('Uncaught Exception', { error });
   // Give logger time to write logs before exiting
   setTimeout(() => {

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 const User = require('../models/User');
 const Capsule = require('../models/Capsule');
 const { logger } = require('../utils/logger');
@@ -24,13 +25,13 @@ exports.getStats = async (req, res) => {
     
     // Users by role distribution
     const usersByRole = await User.aggregate([
-      { $group: { _id: "$role", count: { $sum: 1 } } },
+      { $group: { _id: '$role', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
     
     // Users by subscription type
     const usersBySubscription = await User.aggregate([
-      { $group: { _id: "$subscription.plan_name", count: { $sum: 1 } } },
+      { $group: { _id: '$subscription.plan_name', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
     
@@ -51,14 +52,14 @@ exports.getStats = async (req, res) => {
       {
         $group: {
           _id: { 
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" }, 
-            day: { $dayOfMonth: "$createdAt" }
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }, 
+            day: { $dayOfMonth: '$createdAt' }
           },
           count: { $sum: 1 }
         }
       },
-      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
     ]);
     
     // Format the daily data for charting
@@ -92,13 +93,13 @@ exports.getStats = async (req, res) => {
       {
         $group: {
           _id: { 
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" }
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
           },
           count: { $sum: 1 }
         }
       },
-      { $sort: { "_id.year": 1, "_id.month": 1 } }
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
     ]);
     
     // Format the monthly data for charting
@@ -224,7 +225,7 @@ exports.getStats = async (req, res) => {
     // Users by role distribution with error handling
     try {
       statsData.users.byRole = await User.aggregate([
-        { $group: { _id: "$role", count: { $sum: 1 } } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]) || [];
     } catch (err) {
@@ -240,14 +241,14 @@ exports.getStats = async (req, res) => {
           $project: {
             subscriptionName: {
               $cond: {
-                if: { $eq: [{ $type: "$subscription" }, "object"] },
-                then: "$subscription.plan_name",
-                else: "$subscription" // Use the string value directly
+                if: { $eq: [{ $type: '$subscription' }, 'object'] },
+                then: '$subscription.plan_name',
+                else: '$subscription' // Use the string value directly
               }
             }
           }
         },
-        { $group: { _id: "$subscriptionName", count: { $sum: 1 } } },
+        { $group: { _id: '$subscriptionName', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]) || [];
     } catch (err) {
@@ -290,14 +291,14 @@ exports.getStats = async (req, res) => {
         {
           $group: {
             _id: { 
-              year: { $year: "$createdAt" },
-              month: { $month: "$createdAt" }, 
-              day: { $dayOfMonth: "$createdAt" }
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }, 
+              day: { $dayOfMonth: '$createdAt' }
             },
             count: { $sum: 1 }
           }
         },
-        { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+        { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
       ]) || [];
       
       // Format the daily data for charting
@@ -344,13 +345,13 @@ exports.getStats = async (req, res) => {
         {
           $group: {
             _id: { 
-              year: { $year: "$createdAt" },
-              month: { $month: "$createdAt" }
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
             },
             count: { $sum: 1 }
           }
         },
-        { $sort: { "_id.year": 1, "_id.month": 1 } }
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]) || [];
       
       // Format the monthly data for charting

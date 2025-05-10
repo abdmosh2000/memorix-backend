@@ -92,7 +92,7 @@ exports.formatUserRegistrationData = (userData = [], months = 6) => {
  * @param {Object} subscriptions - Raw subscription data from the database
  * @returns {Array} Formatted data for rendering in pie charts
  */
-exports.formatSubscriptionData = (subscriptions) => {
+exports.formatSubscriptionData = subscriptions => {
   // Default data with all plans set to 0
   const defaultData = [
     { name: 'Free', value: 0 },

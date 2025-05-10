@@ -31,10 +31,10 @@ function encrypt(data, key = config.encryption.capsuleEncryptKey) {
     // Get authentication tag (for integrity verification)
     const authTag = cipher.getAuthTag();
     
-  // Combine IV, encrypted data, and auth tag into a single string
-  // Format: base64(iv).base64(authTag).base64(encryptedData)
-  // Using '.' as separator instead of ':' to avoid conflicts with base64 data
-  return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted}`;
+    // Combine IV, encrypted data, and auth tag into a single string
+    // Format: base64(iv).base64(authTag).base64(encryptedData)
+    // Using '.' as separator instead of ':' to avoid conflicts with base64 data
+    return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted}`;
   } catch (error) {
     console.error('Encryption error:', error);
     throw new Error('Failed to encrypt data');

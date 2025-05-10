@@ -12,7 +12,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start:render": "NODE_ENV=production PORT=10000 node server.js"
+    "start:render": "cross-env NODE_ENV=production PORT=10000 node server.js"
   },
   "engines": {
     "node": ">=16.x"
@@ -30,10 +30,11 @@
     "mongoose": "^7.5.0",
     "morgan": "^1.10.0",
     "resend": "^2.0.0",
-    "winston": "^3.11.0",
+    "winston": "^3.17.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "eslint": "^8.48.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-jest": "^27.2.3",
