@@ -7,6 +7,7 @@ const port = process.env.PORT || 10000;
 app.get('/', (req, res) => {
   res.send('✅ Memorix API is online!');
 });
+console.log("PORT from env:", process.env.PORT);
 
 // Start the server listening on all interfaces (0.0.0.0) to ensure Render detects the port binding
 app.listen(port, '0.0.0.0', () => {
