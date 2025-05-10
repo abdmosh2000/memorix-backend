@@ -4,7 +4,8 @@ const app = require('./app');
 const config = require('./config/config');
 
 // Get port from environment variable or config
-const port = process.env.PORT || config.server.port;
+// Render will provide a PORT environment variable
+const port = process.env.PORT || config.server.port || 3000;
 
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`PORT from env: ${process.env.PORT || 'not set, using default'}`);
@@ -17,9 +18,9 @@ app.get('/', (req, res) => {
 });
 
 // Create server instance with proper cleanup
-const server = app.listen(port, '0.0.0.0', () => {
+const server = app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
-  console.log(`✅ Server is listening on 0.0.0.0:${port}`);
+  console.log(`✅ Server is listening on all interfaces`);
   console.log(`✅ Visit http://localhost:${port} if running locally`);
 });
 
