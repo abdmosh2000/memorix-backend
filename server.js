@@ -18,25 +18,28 @@ app.get('/', (req, res) => {
 });
 
 // Create server instance with proper cleanup
-const server = app.listen(port, () => {
-  console.log(`✅ Server running on port ${port}`);
-  console.log(`✅ Server is listening on all interfaces`);
-  console.log(`✅ Visit http://localhost:${port} if running locally`);
-});
-
-// Handle graceful shutdown
-const gracefulShutdown = (signal) => {
-  console.log(`📢 ${signal} received. Shutting down gracefully...`);
-  server.close(() => {
-    console.log('💤 HTTP server closed.');
-    // Additional cleanup can happen here
-    console.log('👋 Process terminating...');
-    // Instead of process.exit(), we just let the event loop empty naturally
+// IMPORTANT: Listen on the port Render provides
+try {
+  const server = app.listen(port, () => {
+    console.log(`✅ Server running on port ${port}`);
+    console.log(`✅ Server is listening on all interfaces`);
+    console.log(`✅ Visit http://localhost:${port} if running locally`);
   });
-};
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  // Handle graceful shutdown
+  const gracefulShutdown = (signal) => {
+    console.log(`📢 ${signal} received. Shutting down gracefully...`);
+    server.close(() => {
+      console.log('💤 HTTP server closed.');
+      // Additional cleanup can happen here
+      console.log('👋 Process terminating...');
+      // Instead of process.exit(), we just let the event loop empty naturally
+    });
+  };
 
-// Disable ESLint for this file since we need to use process handlers
-/* eslint-disable */
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+} catch (error) {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
+}
