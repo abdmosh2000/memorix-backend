@@ -8,7 +8,8 @@ const baseConfig = {
   // Server settings
   server: {
     port: process.env.PORT || 10000,
-    env: env
+    env: env,
+    baseUrl: process.env.SERVER_BASE_URL || 'https://memorix-backend-wn9o.onrender.com'
   },
   
   // Frontend URLs

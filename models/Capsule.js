@@ -130,7 +130,27 @@ capsuleSchema.methods.getDecryptedContent = function() {
   }
     
   console.log(`Attempting to decrypt content for capsule ID: ${this._id}`);
-  console.log(`Content format check - Contains ':': ${this.content.includes(':')}, Contains '.': ${this.content.includes('.')}`);
+  
+  // Check if the content is in a valid format before attempting to decrypt
+  const hasDotFormat = this.content.includes('.') && this.content.split('.').length === 3;
+  const hasColonFormat = this.content.includes(':') && this.content.split(':').length === 3;
+  
+  console.log(`Content format check - Dot format: ${hasDotFormat}, Colon format: ${hasColonFormat}`);
+  
+  // If the format is invalid, return an error message without attempting decryption
+  if (!hasDotFormat && !hasColonFormat) {
+    console.error(`Invalid content format for capsule ID ${this._id} - missing required separators`);
+    
+    // Log more details about the format to help diagnose the issue
+    const separatorCount = this.content.includes(':') 
+      ? this.content.split(':').length - 1 
+      : this.content.split('.').length - 1;
+    
+    console.error(`Content has ${separatorCount} separators, expected 2`);
+    
+    // Return error message for invalid format
+    return 'Error: Content format is invalid and cannot be decrypted';
+  }
     
   try {
     const decrypted = encryption.decrypt(this.content);
@@ -142,14 +162,16 @@ capsuleSchema.methods.getDecryptedContent = function() {
     // Log more details about the content format to help diagnose the issue
     const contentPreview = this.content.substring(0, 50) + (this.content.length > 50 ? '...' : '');
     console.error('Content preview:', contentPreview);
-        
-    // Try to determine if content is in the expected format
-    const hasCorrectFormat = (
-      this.content.includes('.') || 
-            this.content.includes(':') && 
-            this.content.split(':').length >= 3
-    );
-    console.error('Content appears to be in correct encrypted format:', hasCorrectFormat);
+    
+    // Log detailed format information
+    const formatInfo = {
+      length: this.content.length,
+      dotSeparators: this.content.split('.').length - 1,
+      colonSeparators: this.content.split(':').length - 1,
+      startsWithBase64Chars: /^[A-Za-z0-9+/]+=*$/.test(this.content.split(/[.:]/, 1)[0])
+    };
+    
+    console.error('Content format details:', formatInfo);
         
     return 'Error: Content could not be decrypted';
   }
@@ -163,7 +185,27 @@ capsuleSchema.methods.getDecryptedMedia = function() {
   }
     
   console.log(`Attempting to decrypt media for capsule ID: ${this._id}`);
-  console.log(`Media format check - Contains ':': ${this.mediaContent.includes(':')}, Contains '.': ${this.mediaContent.includes('.')}`);
+  
+  // Check if the media content is in a valid format before attempting to decrypt
+  const hasDotFormat = this.mediaContent.includes('.') && this.mediaContent.split('.').length === 3;
+  const hasColonFormat = this.mediaContent.includes(':') && this.mediaContent.split(':').length === 3;
+  
+  console.log(`Media format check - Dot format: ${hasDotFormat}, Colon format: ${hasColonFormat}`);
+  
+  // If the format is invalid, return null without attempting decryption
+  if (!hasDotFormat && !hasColonFormat) {
+    console.error(`Invalid media format for capsule ID ${this._id} - missing required separators`);
+    
+    // Log more details about the format to help diagnose the issue
+    const separatorCount = this.mediaContent.includes(':') 
+      ? this.mediaContent.split(':').length - 1 
+      : this.mediaContent.split('.').length - 1;
+    
+    console.error(`Media has ${separatorCount} separators, expected 2`);
+    
+    // Return null for invalid format
+    return null;
+  }
     
   try {
     const decrypted = encryption.decrypt(this.mediaContent);
@@ -171,15 +213,17 @@ capsuleSchema.methods.getDecryptedMedia = function() {
     return decrypted;
   } catch (error) {
     console.error(`Error decrypting media for capsule ID ${this._id}:`, error);
-        
+    
     // For media content, just log the format info, not content preview (could be large)
-    const hasCorrectFormat = (
-      this.mediaContent.includes('.') || 
-            this.mediaContent.includes(':') && 
-            this.mediaContent.split(':').length >= 3
-    );
-    console.error('Media appears to be in correct encrypted format:', hasCorrectFormat);
-        
+    const formatInfo = {
+      length: this.mediaContent.length,
+      dotSeparators: this.mediaContent.split('.').length - 1,
+      colonSeparators: this.mediaContent.split(':').length - 1,
+      startsWithBase64Chars: /^[A-Za-z0-9+/]+=*$/.test(this.mediaContent.split(/[.:]/, 1)[0])
+    };
+    
+    console.error('Media format details:', formatInfo);
+    
     return null;
   }
 };
@@ -192,8 +236,17 @@ capsuleSchema.virtual('safeVersion').get(function() {
   // If the capsule is encrypted and we have access, decrypt it
   if (this.contentEncrypted && this.content) {
     try {
-      capsuleObj.content = this.getDecryptedContent();
-      capsuleObj.contentEncrypted = false;
+      const decryptedContent = this.getDecryptedContent();
+      
+      // Check if decryption returned an error message
+      if (typeof decryptedContent === 'string' && decryptedContent.startsWith('Error:')) {
+        console.warn(`Using error message for content: ${decryptedContent}`);
+        capsuleObj.content = decryptedContent;
+        // Keep contentEncrypted as true to indicate it's still not decrypted
+      } else {
+        capsuleObj.content = decryptedContent;
+        capsuleObj.contentEncrypted = false;
+      }
     } catch (error) {
       console.error('Error creating safe version of capsule:', error);
       capsuleObj.content = 'Error: Content unavailable';
@@ -203,8 +256,17 @@ capsuleSchema.virtual('safeVersion').get(function() {
   // Same for media content
   if (this.mediaEncrypted && this.mediaContent) {
     try {
-      capsuleObj.mediaContent = this.getDecryptedMedia();
-      capsuleObj.mediaEncrypted = false;
+      const decryptedMedia = this.getDecryptedMedia();
+      
+      // Check if decryption returned null (indicating an error)
+      if (decryptedMedia === null) {
+        console.warn('Media decryption returned null, setting mediaContent to null');
+        capsuleObj.mediaContent = null;
+        // Keep mediaEncrypted as true to indicate it's still not decrypted
+      } else {
+        capsuleObj.mediaContent = decryptedMedia;
+        capsuleObj.mediaEncrypted = false;
+      }
     } catch (error) {
       console.error('Error decrypting media for safe version:', error);
       capsuleObj.mediaContent = null;

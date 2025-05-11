@@ -94,7 +94,7 @@ async function sendVerificationEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/assets/logo.png" alt="Memorix Logo" style="max-width: 180px;">
+        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Verify Your Email Address</h2>
       <p>Hello ${name},</p>
@@ -135,7 +135,7 @@ async function sendPasswordResetEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/assets/logo.png" alt="Memorix Logo" style="max-width: 180px;">
+        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Reset Your Password</h2>
       <p>Hello ${name},</p>
@@ -276,6 +276,8 @@ async function sendWelcomeEmail(email, name) {
   });
 }
 
+const { generateMediaUrl } = require('../controllers/mediaController');
+
 /**
  * Send a notification about a released capsule
  * @param {string} email - Recipient's email address
@@ -284,12 +286,12 @@ async function sendWelcomeEmail(email, name) {
  * @param {string} creatorName - Name of the creator (optional for creator notifications)
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
- * @param {string} mediaContent - Decrypted media content (base64-encoded)
+ * @param {string} capsuleId - ID of the capsule (for generating secure media URLs)
  * @param {string} mediaType - Type of media (photo, video, audio) if any
  * @param {boolean} isCreator - Whether the recipient is the creator
  * @returns {Promise<Object>} - Email send result
  */
-async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, mediaContent, mediaType, isCreator) {
+async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, capsuleId, mediaType, isCreator) {
   // Format the release date in a readable format
   const formattedReleaseDate = new Date(releaseDate).toLocaleDateString('en-US', {
     year: 'numeric', 
@@ -304,57 +306,63 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
   
   // Handle media content based on type
   let mediaSection = '';
-  if (mediaContent && mediaType) {
-    // Determine how to embed the media based on its type
+  if (mediaType) {
+    // Generate secure URL for viewing the media directly
+    const mediaUrl = generateMediaUrl(capsuleId, mediaType);
+    
+    // Create appropriate HTML based on media type
     if (mediaType === 'photo') {
-      // For photos, we can directly embed the base64 data in the email
+      // For photos, provide a direct link with preview image
       mediaSection = `
         <div style="margin: 20px 0;">
           <h3 style="color: #333; margin-top: 0;">Photo Memory:</h3>
           <div style="text-align: center;">
-            <img src="${mediaContent}" alt="Memory Photo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <a href="${mediaUrl}" target="_blank" style="display: block;">
+              <div style="padding: 15px; background-color: #f9f0ff; border-radius: 8px; text-align: center;">
+                <p style="margin-bottom: 10px; font-weight: bold;">Click to view the photo</p>
+                <!-- Use the logo as a placeholder since we don't have specific media placeholders -->
+                <img src="${config.frontend.url}/logo.png" alt="Photo Memory Preview" style="max-width: 150px; border-radius: 4px; margin: 0 auto;">
+              </div>
+            </a>
           </div>
         </div>
       `;
     } else if (mediaType === 'video') {
-      // For video, provide a video element with the embedded content
-      // Note: Not all email clients support video playback
+      // For videos, provide a clear link
       mediaSection = `
         <div style="margin: 20px 0;">
           <h3 style="color: #333; margin-top: 0;">Video Memory:</h3>
-          <div style="text-align: center;">
-            <video controls width="100%" style="max-width: 500px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              <source src="${mediaContent}" type="video/mp4">
-              Your email client doesn't support video playback. Please log in to view the video content.
-            </video>
+          <div style="text-align: center; padding: 15px; background-color: #f9f0ff; border-radius: 8px;">
+            <p style="margin-bottom: 10px;">This capsule includes a video memory.</p>
+            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Watch Video
+            </a>
           </div>
-          <p style="text-align: center; font-style: italic; margin-top: 10px;">
-            Note: If video doesn't play, you can view it by logging into your Memorix account.
-          </p>
         </div>
       `;
     } else if (mediaType === 'audio') {
-      // For audio, provide an audio element with the embedded content
-      // Note: Not all email clients support audio playback
+      // For audio, provide a clear link
       mediaSection = `
         <div style="margin: 20px 0;">
           <h3 style="color: #333; margin-top: 0;">Audio Memory:</h3>
-          <div style="text-align: center;">
-            <audio controls style="width: 100%; max-width: 400px; margin: 0 auto;">
-              <source src="${mediaContent}" type="audio/mpeg">
-              Your email client doesn't support audio playback. Please log in to view the audio content.
-            </audio>
+          <div style="text-align: center; padding: 15px; background-color: #f9f0ff; border-radius: 8px;">
+            <p style="margin-bottom: 10px;">This capsule includes an audio memory.</p>
+            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Listen to Audio
+            </a>
           </div>
-          <p style="text-align: center; font-style: italic; margin-top: 10px;">
-            Note: If audio doesn't play, you can listen to it by logging into your Memorix account.
-          </p>
         </div>
       `;
     } else {
       // Fallback for unsupported media types
       mediaSection = `
         <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          <p><strong>Media Content:</strong> This capsule includes ${mediaType} content. For the best experience, please log into your Memorix account to view it.</p>
+          <p><strong>Media Content:</strong> This capsule includes ${mediaType} content. Click the button below to view it:</p>
+          <div style="text-align: center; margin-top: 15px;">
+            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              View Media Content
+            </a>
+          </div>
         </div>
       `;
     }

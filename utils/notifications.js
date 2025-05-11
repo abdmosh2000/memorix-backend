@@ -11,15 +11,15 @@ const emailService = require('./emailService');
  * @param {string} capsuleTitle - Title of the capsule
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
- * @param {string} mediaContent - Optional media content (base64 encoded)
- * @param {string} mediaType - Type of media content
+ * @param {string} capsuleId - ID of the capsule
+ * @param {string} mediaType - Type of media content (if any)
  * @returns {Promise<boolean>} - Success status
  */
-const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, mediaContent, mediaType) => {
+const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, capsuleId, mediaType) => {
   const subject = 'Your Memorix Capsule has been released';
     
   try {
-    // Use the new emailService function to send formatted HTML email with content
+    // Use the emailService function with capsuleId for secure media access
     await emailService.sendCapsuleReleasedNotification(
       email, 
       subject,
@@ -27,7 +27,7 @@ const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, m
       null, // No creator name needed for creator notification
       releaseDate,
       content,
-      mediaContent, // Pass the media content to the email service
+      capsuleId, // Pass the capsule ID instead of media content
       mediaType,
       true // This is the creator notification
     );
@@ -45,15 +45,15 @@ const notifyCapsuleCreator = async (email, capsuleTitle, releaseDate, content, m
  * @param {string} creatorName - Name of the capsule creator
  * @param {Date} releaseDate - Release date of the capsule
  * @param {string} content - Decrypted content of the capsule
- * @param {string} mediaContent - Optional media content (base64 encoded)
- * @param {string} mediaType - Type of media content
+ * @param {string} capsuleId - ID of the capsule
+ * @param {string} mediaType - Type of media content (if any)
  * @returns {Promise<boolean>} - Success status
  */
-const notifyCapsuleRecipient = async (recipientEmail, capsuleTitle, creatorName, releaseDate, content, mediaContent, mediaType) => {
+const notifyCapsuleRecipient = async (recipientEmail, capsuleTitle, creatorName, releaseDate, content, capsuleId, mediaType) => {
   const subject = 'A Memorix Capsule has been shared with you';
     
   try {
-    // Use the new emailService function to send formatted HTML email with content
+    // Use the emailService function with capsuleId for secure media access
     await emailService.sendCapsuleReleasedNotification(
       recipientEmail, 
       subject,
@@ -61,7 +61,7 @@ const notifyCapsuleRecipient = async (recipientEmail, capsuleTitle, creatorName,
       creatorName, 
       releaseDate,
       content,
-      mediaContent, // Pass the media content to the email service
+      capsuleId, // Pass the capsule ID instead of media content
       mediaType,
       false // This is not the creator notification
     );

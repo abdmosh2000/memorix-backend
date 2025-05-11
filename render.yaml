@@ -1,4 +1,4 @@
-# Simple Render configuration file for backend service
+# Render configuration file for backend service and scheduled tasks
 
 services:
   # Backend service
@@ -20,6 +20,23 @@ services:
           name: memorix-db
           property: connectionString
     plan: starter
+
+  # Scheduled task for checking released capsules
+  - type: cron
+    name: check-released-capsules
+    env: node
+    schedule: "0 * * * *"  # Run every hour
+    buildCommand: npm install
+    startCommand: node scripts/checkReleasedCapsules.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://memorix.fun
+      - key: MONGO_URI
+        fromDatabase:
+          name: memorix-db
+          property: connectionString
 
 databases:
   - name: memorix-db

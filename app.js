@@ -28,6 +28,7 @@ const notificationRoutes = require('./routes/notifications');
 const subscriptionRoutes = require('./routes/subscriptions');
 const healthRoutes = require('./routes/health');
 const adminRoutes = require('./routes/admin');
+const mediaRoutes = require('./routes/media');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { connectDB } = require('./config/db');
 console.log('✅ Express instance created');
@@ -42,11 +43,25 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// CORS configuration - extremely permissive during development
+// CORS configuration - allow frontend and configured domains
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow all origins
-    callback(null, true);
+    // Check if the request origin is in the allowed origins list
+    const allowedOrigins = config.frontend.allowedOrigins;
+    
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      // Add memorix.fun domain explicitly if it's not already included
+      if (origin.includes('memorix.fun') || origin.includes('memorix-app')) {
+        console.log(`Allowing request from trusted origin: ${origin}`);
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
@@ -132,6 +147,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/admin', adminRoutes); // Admin routes
+app.use('/api/media', mediaRoutes); // Media routes (no authentication required, uses token)
 
 // Custom 404 handler (not found)
 app.use(notFound);
