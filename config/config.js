@@ -29,7 +29,10 @@ const baseConfig = {
   // Email settings
   email: {
     from: process.env.EMAIL_FROM || 'Memorix <no-reply@memorix.fun>',
-    resendApiKey: process.env.RESEND_API_KEY || 're_gzsvPCdQ_MD8UtQpXBvvoXqZeQcrgajTG'
+    resendApiKey: process.env.RESEND_API_KEY || 're_gzsvPCdQ_MD8UtQpXBvvoXqZeQcrgajTG',
+    // Test mode for debugging email delivery
+    testMode: process.env.EMAIL_TEST_MODE === 'true',
+    testRecipient: process.env.EMAIL_TEST_RECIPIENT || 'test@memorix.fun'
     // Different templates for different email types could be configured here
   },
   

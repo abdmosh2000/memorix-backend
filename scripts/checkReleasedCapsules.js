@@ -78,32 +78,49 @@ async function checkReleasedCapsules() {
         decryptedMediaContent = null;
       }
             
-      // Notify capsule creator
-      console.log(`Notifying creator: ${capsule.user.email}`);
-      await notifyCapsuleCreator(
-        capsule.user.email, 
-        capsule.title, 
-        capsule.releaseDate,
-        decryptedContent,
-        decryptedMediaContent,
-        capsule.mediaType
-      );
+      // Notify capsule creator with improved error handling
+      try {
+        console.log(`Notifying creator: ${capsule.user.email}`);
+        await notifyCapsuleCreator(
+          capsule.user.email, 
+          capsule.title, 
+          capsule.releaseDate,
+          decryptedContent,
+          decryptedMediaContent,
+          capsule.mediaType
+        );
+        console.log('Creator notification sent successfully');
+      } catch (creatorError) {
+        console.error(`Error notifying creator (${capsule.user.email}):`, creatorError);
+        // Continue processing - don't let one email failure stop the process
+      }
             
-      // Notify all recipients
+      // Notify all recipients with improved error handling
       if (capsule.recipients && capsule.recipients.length > 0) {
+        let successCount = 0;
+        let failedCount = 0;
+        
         for (const recipient of capsule.recipients) {
-          console.log(`Notifying recipient: ${recipient.email}`);
-          await notifyCapsuleRecipient(
-            recipient.email,
-            capsule.title,
-            capsule.user.name,
-            capsule.releaseDate,
-            decryptedContent,
-            decryptedMediaContent,
-            capsule.mediaType
-          );
+          try {
+            console.log(`Notifying recipient: ${recipient.email}`);
+            await notifyCapsuleRecipient(
+              recipient.email,
+              capsule.title,
+              capsule.user.name,
+              capsule.releaseDate,
+              decryptedContent,
+              decryptedMediaContent,
+              capsule.mediaType
+            );
+            console.log(`Successfully sent notification to ${recipient.email}`);
+            successCount++;
+          } catch (recipientError) {
+            console.error(`Error notifying recipient (${recipient.email}):`, recipientError);
+            failedCount++;
+            // Continue with other recipients
+          }
         }
-        console.log(`Notified ${capsule.recipients.length} recipients`);
+        console.log(`Notification summary: ${successCount} successful, ${failedCount} failed out of ${capsule.recipients.length} recipients`);
       } else {
         console.log('No recipients to notify');
       }

@@ -22,6 +22,19 @@ const resend = new Resend(resendApiKey);
 async function sendEmail(options) {
   const { to, subject, html, text, from = config.email.from, retries = 3 } = options;
   
+  // Test mode - log the email instead of sending it
+  if (config.email && config.email.testMode) {
+    console.log('📧 TEST MODE - Email would be sent with these details:');
+    console.log(`From: ${from}`);
+    console.log(`To: ${config.email.testRecipient || to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`HTML content length: ${html ? html.length : 0} characters`);
+    console.log('Content preview:', html ? html.substring(0, 150) + '...' : 'No HTML content');
+    
+    // In test mode, we pretend the email was sent successfully
+    return { id: 'test-email-id-' + Date.now(), testMode: true };
+  }
+  
   let lastError;
   
   // Try to send the email with exponential backoff retries

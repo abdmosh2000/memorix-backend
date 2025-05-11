@@ -225,16 +225,32 @@ userSchema.pre('findOneAndUpdate', function(next) {
   console.log('findOneAndUpdate hook running');
   const update = this.getUpdate();
   
-  // Handle $set operator
-  if (update && update.$set && update.$set.subscription) {
-    console.log('Found subscription in $set:', update.$set.subscription);
-    const originalValue = update.$set.subscription;
-    try {
-      update.$set.subscription = convertSubscriptionToObject(update.$set.subscription);
-      console.log('Converted $set.subscription from', originalValue, 'to', update.$set.subscription);
-    } catch (error) {
-      console.error('Error converting $set.subscription:', error);
-      // Set a default value if conversion fails
+  try {
+    // Handle $set operator
+    if (update && update.$set) {
+      if (typeof update.$set.subscription === 'string') {
+        console.log('Found string subscription in $set:', update.$set.subscription);
+        update.$set.subscription = convertSubscriptionToObject(update.$set.subscription);
+        console.log('Converted $set.subscription to object:', update.$set.subscription);
+      } else if (update.$set.subscription && typeof update.$set.subscription === 'object') {
+        console.log('Found object subscription in $set, no conversion needed');
+      }
+    }
+    
+    // Handle direct update
+    if (update) {
+      if (typeof update.subscription === 'string') {
+        console.log('Found direct string subscription update:', update.subscription);
+        update.subscription = convertSubscriptionToObject(update.subscription);
+        console.log('Converted direct subscription to object:', update.subscription);
+      } else if (update.subscription && typeof update.subscription === 'object') {
+        console.log('Found direct object subscription, no conversion needed');
+      }
+    }
+  } catch (error) {
+    console.error('Error in findOneAndUpdate subscription conversion:', error);
+    // Provide a default safe value if conversion fails
+    if (update && update.$set) {
       update.$set.subscription = {
         plan_name: 'Free',
         subscribed_at: new Date(),
@@ -243,18 +259,8 @@ userSchema.pre('findOneAndUpdate', function(next) {
         expiry_date: null
       };
     }
-  }
-  
-  // Handle direct update
-  if (update && update.subscription) {
-    console.log('Found direct subscription update:', update.subscription);
-    const originalValue = update.subscription;
-    try {
-      update.subscription = convertSubscriptionToObject(update.subscription);
-      console.log('Converted direct subscription from', originalValue, 'to', update.subscription);
-    } catch (error) {
-      console.error('Error converting direct subscription:', error);
-      // Set a default value if conversion fails
+    
+    if (update && update.subscription !== undefined) {
       update.subscription = {
         plan_name: 'Free',
         subscribed_at: new Date(),
