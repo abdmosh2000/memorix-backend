@@ -187,34 +187,42 @@ userSchema.pre('save', function(next) {
   console.log('Pre-save hook running for user:', this.email);
   console.log('Initial subscription value:', this.subscription);
   
-  // Special handling for string values directly assigned to subscription
-  if (typeof this.subscription === 'string') {
-    console.log('Found string subscription in pre-save hook, converting:', this.subscription);
-    // Use a try-catch since this is critical functionality
-    try {
-      this.subscription = convertSubscriptionToObject(this.subscription);
-      console.log('Successfully converted to:', this.subscription);
-    } catch (error) {
-      console.error('Error converting subscription in pre-save hook:', error);
-      // Fallback to a default value
-      this.subscription = {
+  // Initialize subscription as an object if it's not already
+  if (!this.subscription || typeof this.subscription === 'string') {
+    console.log('Subscription needs conversion:', this.subscription);
+    
+    let subscriptionObj;
+    
+    // Convert string value or use default if not provided
+    if (typeof this.subscription === 'string') {
+      try {
+        subscriptionObj = convertSubscriptionToObject(this.subscription);
+        console.log('Successfully converted string to subscription object:', subscriptionObj);
+      } catch (error) {
+        console.error('Error converting subscription in pre-save hook:', error);
+        // Use fallback default
+        subscriptionObj = {
+          plan_name: 'Free',
+          subscribed_at: new Date(),
+          payment_method: 'None',
+          status: 'active',
+          expiry_date: null
+        };
+      }
+    } else {
+      // Default for null/undefined
+      subscriptionObj = {
         plan_name: 'Free',
         subscribed_at: new Date(),
         payment_method: 'None',
         status: 'active',
         expiry_date: null
       };
-      console.log('Using fallback subscription value:', this.subscription);
     }
-  } else if (!this.subscription) {
-    console.log('No subscription found, setting default');
-    this.subscription = {
-      plan_name: 'Free',
-      subscribed_at: new Date(),
-      payment_method: 'None',
-      status: 'active',
-      expiry_date: null
-    };
+    
+    // Set the subscription directly on the document
+    this.set('subscription', subscriptionObj);
+    console.log('Final subscription after conversion:', this.subscription);
   }
   
   next();
