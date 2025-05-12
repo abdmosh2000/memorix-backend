@@ -418,6 +418,58 @@ exports.getStats = async (req, res) => {
   }
 };
 /**
+ * @desc    Get a user by ID
+ * @route   GET /api/admin/users/:id
+ * @access  Private/Admin
+ */
+exports.getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find user by ID
+    const user = await User.findById(id)
+      .select('-password -verificationToken -verificationTokenExpires -passwordResetToken -passwordResetExpires')
+      .lean();
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Process user subscription to ensure it's always an object
+    if (typeof user.subscription === 'string') {
+      const subscriptionType = user.subscription;
+      user.subscription = {
+        plan_name: subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1),
+        status: subscriptionType.toLowerCase() === 'vip' || subscriptionType.toLowerCase() === 'lifetime' 
+          ? 'lifetime' 
+          : 'active',
+        payment_method: 'None',
+        subscribed_at: new Date(),
+        expiry_date: null
+      };
+    }
+    
+    // Get capsule count
+    const capsuleCount = await Capsule.countDocuments({ user: id });
+    
+    // Add or update capsule count
+    user.capsuleCount = user.capsuleCount || capsuleCount;
+    
+    res.json(user);
+  } catch (error) {
+    logger.error(`Error retrieving user by ID ${req.params.id}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve user details',
+      error: error.message
+    });
+  }
+};
+
+/**
  * @desc    Get all users with filtering, pagination and search
  * @route   GET /api/admin/users
  * @access  Private/Admin

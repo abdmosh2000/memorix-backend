@@ -15,6 +15,7 @@ router.get('/dashboard-summary', protect, admin, adminController.getDashboardSum
 /**
  * User Management
  * GET /api/admin/users - Get all users with filtering
+ * GET /api/admin/users/:id - Get a specific user by ID
  * PUT /api/admin/users/:id/role - Update user role
  * DELETE /api/admin/users/:id - Delete a user
  * PUT /api/admin/users/:id/verify - Manually verify user email
@@ -22,6 +23,7 @@ router.get('/dashboard-summary', protect, admin, adminController.getDashboardSum
  * Access: Private/Admin
  */
 router.get('/users', protect, admin, adminController.getUsers);
+router.get('/users/:id', protect, admin, adminController.getUserById);
 router.put('/users/:id/role', protect, admin, adminController.updateUserRole);
 router.delete('/users/:id', protect, headAdmin, adminController.deleteUser);
 router.put('/users/:id/verify', protect, admin, adminController.verifyUserEmail);
