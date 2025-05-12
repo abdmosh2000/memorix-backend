@@ -48,15 +48,35 @@ const verifyMediaToken = (token, capsuleId, mediaType) => {
 
 // Function to generate a secure media access URL
 const generateMediaUrl = (capsuleId, mediaType) => {
-  // Set the token to expire in 7 days - adjust as needed
+  // Set the token to expire in 30 days - increased for better user experience
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  expiresAt.setDate(expiresAt.getDate() + 30);
   
   // Generate a token for this media
   const token = generateMediaToken(capsuleId, mediaType, expiresAt);
   
   // Create a URL that points to our media endpoint
-  return `${config.server.baseUrl}/api/media/${capsuleId}/${mediaType}?token=${token}`;
+  // Use full URL with protocol and domain to ensure it works in emails
+  const baseUrl = config.server.baseUrl;
+  
+  // Log the URL generation for debugging
+  console.log('Generating media URL with base:', baseUrl);
+  
+  // For email links, make sure we're using https:// prefix
+  let url = baseUrl;
+  if (!url.startsWith('http')) {
+    url = `https://${url}`;
+  }
+  
+  // Make sure the URL doesn't have double slashes in the path part
+  let mediaUrl = `${url}/api/media/${capsuleId}/${mediaType}?token=${token}`;
+  
+  // Make sure the URL has the correct path structure
+  mediaUrl = mediaUrl.replace(/([^:])\/\//g, '$1/'); // Replace any double slashes (except in protocol)
+  
+  console.log('Generated media URL:', mediaUrl);
+  
+  return mediaUrl;
 };
 
 // @desc    Get media content by capsule ID

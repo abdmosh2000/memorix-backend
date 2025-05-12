@@ -60,7 +60,8 @@ const errorHandler = (err, req, res, next) => {
       ip: req.ip,
       userId: req.user ? req.user.id : 'unauthenticated',
       errorDetails: err.details || {},
-      stack: err.stack
+      stack: err.stack,
+      origin: req.headers.origin || 'unknown'
     });
   } else if (!err.isOperational) {
     // Programmer errors or unexpected errors
@@ -68,7 +69,8 @@ const errorHandler = (err, req, res, next) => {
       path: req.originalUrl, 
       method: req.method,
       errorDetails: err.details || {},
-      stack: err.stack
+      stack: err.stack,
+      origin: req.headers.origin || 'unknown'
     });
   } else {
     // Client errors (400-499) with isOperational flag are expected errors
@@ -76,7 +78,17 @@ const errorHandler = (err, req, res, next) => {
       path: req.originalUrl, 
       method: req.method,
       userId: req.user ? req.user.id : 'unauthenticated',
+      origin: req.headers.origin || 'unknown'
     });
+  }
+  
+  // Add CORS headers for error responses to ensure they work across domains
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   }
   
   res.status(statusCode).json(errorResponse);

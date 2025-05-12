@@ -46,22 +46,54 @@ if (!fs.existsSync(logsDir)) {
 // CORS configuration - allow frontend and configured domains
 const corsOptions = {
   origin: function(origin, callback) {
-    // Check if the request origin is in the allowed origins list
-    const allowedOrigins = config.frontend.allowedOrigins;
+    // In development or testing, allow all origins
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      return callback(null, true);
+    }
     
     // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked request from origin: ${origin}`);
-      // Add memorix.fun domain explicitly if it's not already included
-      if (origin.includes('memorix.fun') || origin.includes('memorix-app')) {
-        console.log(`Allowing request from trusted origin: ${origin}`);
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Always explicitly allow memorix.fun domains
+    if (origin.includes('memorix.fun')) {
+      console.log(`Allowing request from Memorix domain: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // Always explicitly allow all render.com and onrender.com domains
+    if (origin.includes('render.com') || origin.includes('onrender.com')) {
+      console.log(`Allowing request from Render domain: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // Check if the origin is in the configured allowed origins
+    const allowedOrigins = config.frontend.allowedOrigins;
+    if (allowedOrigins.includes(origin)) {
+      console.log(`Allowing request from configured origin: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // For any other origin, check if it matches wildcard patterns
+    const wildcardOrigins = allowedOrigins.filter(o => o.includes('*'));
+    for (const pattern of wildcardOrigins) {
+      const regexPattern = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+      if (regexPattern.test(origin)) {
+        console.log(`Allowing request from wildcard origin match: ${origin} matches ${pattern}`);
+        return callback(null, true);
       }
     }
+    
+    // Specific check for memorix-app domains
+    if (origin.includes('memorix-app')) {
+      console.log(`Allowing request from Memorix app domain: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // If we get here, the origin is not allowed
+    console.warn(`CORS blocked request from origin: ${origin}`);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
@@ -74,6 +106,16 @@ const corsOptions = {
 
 // Apply CORS globally
 app.use(cors(corsOptions));
+
+// Add a fallback CORS header middleware for error cases
+app.use((req, res, next) => {
+  // Add CORS headers to ensure they're present even in error responses
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 // Parse JSON with increased limit for larger payloads
 const maxRequestSize = config.upload.maxSize || 10 * 1024 * 1024; // Default to 10MB

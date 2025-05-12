@@ -184,23 +184,39 @@ console.log('Pre hooks are more reliable for this complex schema');
 console.log('second console test');
 // Handle subscription field to ensure it's always an object
 userSchema.pre('save', function(next) {
-  console.log('Pre-save hook running for user:', this.email);
-  console.log('Initial subscription value:', this.subscription);
-  
-  // Initialize subscription as an object if it's not already
-  if (!this.subscription || typeof this.subscription === 'string') {
-    console.log('Subscription needs conversion:', this.subscription);
+  try {
+    console.log('Pre-save hook running for user:', this.email);
+    console.log('Initial subscription value:', this.subscription, 'Type:', typeof this.subscription);
     
-    let subscriptionObj;
+    // Defensively ensure subscription field isn't null
+    if (this.subscription === null) {
+      this.subscription = undefined;
+    }
     
-    // Convert string value or use default if not provided
-    if (typeof this.subscription === 'string') {
-      try {
-        subscriptionObj = convertSubscriptionToObject(this.subscription);
-        console.log('Successfully converted string to subscription object:', subscriptionObj);
-      } catch (error) {
-        console.error('Error converting subscription in pre-save hook:', error);
-        // Use fallback default
+    // Initialize subscription as an object if it's not already
+    if (this.subscription === undefined || typeof this.subscription === 'string') {
+      console.log('Subscription needs conversion:', this.subscription);
+      
+      let subscriptionObj;
+      
+      // Convert string value or use default if not provided
+      if (typeof this.subscription === 'string') {
+        try {
+          subscriptionObj = convertSubscriptionToObject(this.subscription);
+          console.log('Successfully converted string to subscription object:', subscriptionObj);
+        } catch (error) {
+          console.error('Error converting subscription in pre-save hook:', error);
+          // Use fallback default
+          subscriptionObj = {
+            plan_name: 'Free',
+            subscribed_at: new Date(),
+            payment_method: 'None',
+            status: 'active',
+            expiry_date: null
+          };
+        }
+      } else {
+        // Default for null/undefined
         subscriptionObj = {
           plan_name: 'Free',
           subscribed_at: new Date(),
@@ -209,20 +225,41 @@ userSchema.pre('save', function(next) {
           expiry_date: null
         };
       }
-    } else {
-      // Default for null/undefined
-      subscriptionObj = {
+      
+      // Set the subscription directly on the document
+      // Using this.markModified to ensure mongoose knows the field was changed
+      this.subscription = subscriptionObj;
+      this.markModified('subscription');
+      console.log('Final subscription after conversion:', this.subscription);
+    } else if (this.subscription && typeof this.subscription === 'object') {
+      // Ensure all required fields are present
+      const defaultObj = {
         plan_name: 'Free',
         subscribed_at: new Date(),
         payment_method: 'None',
         status: 'active',
         expiry_date: null
       };
+      
+      // Apply defaults for missing properties
+      if (!this.subscription.plan_name) this.subscription.plan_name = defaultObj.plan_name;
+      if (!this.subscription.subscribed_at) this.subscription.subscribed_at = defaultObj.subscribed_at;
+      if (!this.subscription.payment_method) this.subscription.payment_method = defaultObj.payment_method;
+      if (!this.subscription.status) this.subscription.status = defaultObj.status;
+      
+      this.markModified('subscription');
     }
-    
-    // Set the subscription directly on the document
-    this.set('subscription', subscriptionObj);
-    console.log('Final subscription after conversion:', this.subscription);
+  } catch (error) {
+    console.error('Critical error in pre-save subscription hook:', error);
+    // Don't let the error stop the save process, just use defaults
+    this.subscription = {
+      plan_name: 'Free',
+      subscribed_at: new Date(),
+      payment_method: 'None',
+      status: 'active',
+      expiry_date: null
+    };
+    this.markModified('subscription');
   }
   
   next();
