@@ -54,23 +54,9 @@ async function checkReleasedCapsules() {
       return; // This return is for code clarity, though it won't be reached
     }
     
-    // Mark all capsules as notified immediately to prevent duplicate processing
-    // This prevents race conditions where another instance of this script runs before
-    // individual capsules are marked as notified
-    const capsuleIds = releasedCapsules.map(capsule => capsule._id);
-    console.log(`Marking ${capsuleIds.length} capsules as notified to prevent duplicate processing`);
-    
-    try {
-      await Capsule.updateMany(
-        { _id: { $in: capsuleIds } },
-        { $set: { notifiedRecipients: true } }
-      );
-      console.log('Successfully marked all capsules as notified');
-    } catch (updateError) {
-      console.error('Error marking capsules as notified:', updateError);
-      // Continue processing anyway - we'll still try to send notifications
-      // but there's a risk of duplicates if another script instance runs
-    }
+    // Instead of marking all capsules as notified at the beginning,
+    // we'll mark each one individually after it's processed successfully
+    console.log(`Processing ${releasedCapsules.length} capsules individually, marking as notified after successful processing`);
         
     // For each released capsule, notify recipients
     for (const capsule of releasedCapsules) {
