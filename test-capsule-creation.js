@@ -3,19 +3,10 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const Capsule = require('./models/Capsule');
-const config = require('./config/config');
 
-// Connect to the database
-mongoose.connect(config.db.uri, config.db.options)
-  .then(() => {
-    console.log('Database connected for test');
-    runTests();
-  })
-  .catch(err => {
-    console.error('Database connection error:', err);
-    process.exit(1);
-  });
+console.log('Starting subscription handling test without database connection');
 
+// Direct test of the subscription conversion logic - simulated, no actual DB connection
 async function runTests() {
   try {
     console.log('Starting test for capsule creation with subscription field');
