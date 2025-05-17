@@ -1,13 +1,28 @@
 const { Resend } = require('resend');
 const config = require('../config/config');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Resend with API key from config
 console.log('Initializing Resend email service');
+
+// Read and convert logo to base64 for embedding in emails
+let logoBase64;
+try {
+  // Use the smaller chrome logo which is better suited for emails
+  const logoPath = path.join(__dirname, '../../frontend/public/favicon_io/android-chrome-192x192.png');
+  const logo = fs.readFileSync(logoPath);
+  logoBase64 = `data:image/png;base64,${Buffer.from(logo).toString('base64')}`;
+  console.log('Logo loaded and converted to base64 for email embedding');
+} catch (error) {
+  console.error('Failed to load logo for email embedding:', error);
+  // Fallback to remote URL if loading fails
+  logoBase64 = 'https://memorix.fun/logo.png';
+}
 const resendApiKey = process.env.RESEND_API_KEY || config.email.resendApiKey;
 console.log('Using API Key:', resendApiKey ? 'API key is set' : 'API key is missing');
 
 const resend = new Resend(resendApiKey);
-
 /**
  * Send an email using Resend
  * @param {Object} options - Email options
@@ -94,7 +109,7 @@ async function sendVerificationEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://memorix.fun/logo.png" alt="Memorix Logo" style="max-width: 180px;">
+        <img src="${logoBase64}" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Verify Your Email Address</h2>
       <p>Hello ${name},</p>
@@ -135,7 +150,7 @@ async function sendPasswordResetEmail(email, name, token) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://memorix.fun/logo.png" alt="Memorix Logo" style="max-width: 180px;">
+        <img src="${logoBase64}" alt="Memorix Logo" style="max-width: 180px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Reset Your Password</h2>
       <p>Hello ${name},</p>
@@ -197,8 +212,8 @@ async function sendCapsuleInvitation(recipients, capsuleId, title, senderName, r
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <img src="https://memorix.fun/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${logoBase64}" alt="Memorix Logo" style="max-width: 150px;">
         </div>
         <h2 style="color: #8E44AD; text-align: center;">A Memory Has Been Shared With You!</h2>
         <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">
@@ -244,7 +259,7 @@ async function sendWelcomeEmail(email, name) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://memorix.fun/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+        <img src="${logoBase64}" alt="Memorix Logo" style="max-width: 150px;">
       </div>
       <h2 style="color: #8E44AD; text-align: center;">Welcome to Memorix!</h2>
       <p>Hello ${name},</p>
@@ -276,10 +291,6 @@ async function sendWelcomeEmail(email, name) {
   });
 }
 
-// Import the media controller for generating secure media URLs
-const mediaController = require('../controllers/mediaController');
-const { generateMediaUrl } = mediaController; // Explicitly import generateMediaUrl
-
 /**
  * Send a notification about a released capsule
  * @param {string} email - Recipient's email address
@@ -294,6 +305,9 @@ const { generateMediaUrl } = mediaController; // Explicitly import generateMedia
  * @returns {Promise<Object>} - Email send result
  */
 async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, creatorName, releaseDate, content, capsuleId, mediaType, isCreator) {
+  // Import the media controller when needed to avoid circular dependencies
+  const { generateMediaUrl } = require('../controllers/mediaController');
+  
   // Format the release date in a readable format
   const formattedReleaseDate = new Date(releaseDate).toLocaleDateString('en-US', {
     year: 'numeric', 
@@ -309,99 +323,79 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
   // Handle media content based on type
   let mediaSection = '';
   if (mediaType) {
-    // Generate secure URL for viewing the media directly
-    const mediaUrl = generateMediaUrl(capsuleId, mediaType);
-    
-    // Create appropriate HTML based on media type
-    if (mediaType === 'photo') {
-      // For photos, provide a direct link with preview image
-      mediaSection = `
-        <div style="margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Photo Memory:</h3>
-          <div style="text-align: center;">
-            <a href="${mediaUrl}" target="_blank" style="display: block;">
-              <div style="padding: 15px; background-color: #f9f0ff; border-radius: 8px; text-align: center;">
-                <p style="margin-bottom: 10px; font-weight: bold;">Click to view the photo</p>
-                <!-- Use the logo as a placeholder since we don't have specific media placeholders -->
-                <img src="https://memorix.fun/logo.png" alt="Photo Memory Preview" style="max-width: 150px; border-radius: 4px; margin: 0 auto;">
-              </div>
-            </a>
+    try {
+      // Generate secure URL for viewing the media directly
+      const mediaUrl = generateMediaUrl(capsuleId, mediaType);
+      
+      // Create appropriate media section based on type
+      if (mediaType === 'image') {
+        mediaSection = `
+          <div style="text-align: center; margin: 20px 0;">
+            <img src="${mediaUrl}" alt="Capsule image" style="max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           </div>
-        </div>
-      `;
-    } else if (mediaType === 'video') {
-      // For videos, provide a clear link
-      mediaSection = `
-        <div style="margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Video Memory:</h3>
-          <div style="text-align: center; padding: 15px; background-color: #f9f0ff; border-radius: 8px;">
-            <p style="margin-bottom: 10px;">This capsule includes a video memory.</p>
-            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-              Watch Video
-            </a>
+        `;
+      } else if (mediaType === 'video') {
+        mediaSection = `
+          <div style="text-align: center; margin: 20px 0;">
+            <p><a href="${mediaUrl}" target="_blank" style="background-color: #8E44AD; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Video</a></p>
+            <p style="font-size: 12px; color: #666;">Video content cannot be viewed directly in email. Click the button to view.</p>
           </div>
-        </div>
-      `;
-    } else if (mediaType === 'audio') {
-      // For audio, provide a clear link
-      mediaSection = `
-        <div style="margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Audio Memory:</h3>
-          <div style="text-align: center; padding: 15px; background-color: #f9f0ff; border-radius: 8px;">
-            <p style="margin-bottom: 10px;">This capsule includes an audio memory.</p>
-            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-              Listen to Audio
-            </a>
+        `;
+      } else if (mediaType === 'audio') {
+        mediaSection = `
+          <div style="text-align: center; margin: 20px 0;">
+            <p><a href="${mediaUrl}" target="_blank" style="background-color: #8E44AD; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Listen to Audio</a></p>
+            <p style="font-size: 12px; color: #666;">Audio content cannot be played directly in email. Click the button to listen.</p>
           </div>
-        </div>
-      `;
-    } else {
-      // Fallback for unsupported media types
+        `;
+      }
+    } catch (err) {
+      console.error('Failed to generate media URL for capsule:', err);
       mediaSection = `
-        <div style="background-color: #f0f4ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          <p><strong>Media Content:</strong> This capsule includes ${mediaType} content. Click the button below to view it:</p>
-          <div style="text-align: center; margin-top: 15px;">
-            <a href="${mediaUrl}" target="_blank" style="display: inline-block; background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-              View Media Content
-            </a>
-          </div>
+        <div style="text-align: center; margin: 20px 0; padding: 15px; background-color: #f8f8f8; border-radius: 4px;">
+          <p style="color: #666;">This capsule contains media that cannot be displayed in this email.</p>
+          <a href="${config.frontend.url}/capsules/${capsuleId}" style="color: #8E44AD; text-decoration: none;">View on Memorix</a>
         </div>
       `;
     }
   }
   
-  const creatorSection = isCreator 
-    ? `<p>Your time capsule has been released. Recipients have been notified and can now view its contents.</p>` 
-    : `<p>${creatorName} has shared a time capsule with you that has now been released.</p>`;
+  // Construct the viewUrl for the capsule
+  const viewUrl = `${config.frontend.url}/capsules/${capsuleId}`;
   
+  // Different greeting based on whether it's the creator or a recipient
+  const greeting = isCreator 
+    ? `<p>Hello,</p><p>Your time capsule has been opened!</p>` 
+    : `<p>Hello,</p><p>${creatorName} has shared a memory with you that has now been unlocked!</p>`;
+
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #fcfcfc;">
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://memorix.fun/logo.png" alt="Memorix Logo" style="max-width: 150px;">
+        <img src="${logoBase64}" alt="Memorix Logo" style="max-width: 150px;">
       </div>
-      <h2 style="color: #8E44AD; text-align: center;">Time Capsule Released!</h2>
-      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 6px rgba(142, 68, 173, 0.1);">
-        <p style="font-size: 20px; margin: 0; text-align: center;">
-          <span style="display: block; font-weight: bold; margin-bottom: 8px; color: #8E44AD;">"${capsuleTitle}"</span>
-          Released on ${formattedReleaseDate}
-        </p>
+      <h2 style="color: #8E44AD; text-align: center;">A Memory Has Been Revealed!</h2>
+      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        ${greeting}
       </div>
-      ${creatorSection}
+      <h3 style="color: #333; text-align: center;">${capsuleTitle}</h3>
+      <p>Released on: <strong>${formattedReleaseDate}</strong></p>
       
+      <!-- Content Section -->
+      <div style="margin: 25px 0; padding: 15px; background-color: #f9f9f9; border-radius: 4px; border-left: 4px solid #8E44AD;">
+        <p style="white-space: pre-wrap;">${formattedContent}</p>
+      </div>
+      
+      <!-- Media Section -->
       ${mediaSection}
       
-      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);">
-        <h3 style="color: #333; margin-top: 0; border-bottom: 2px solid #8E44AD; padding-bottom: 8px;">Memory Content:</h3>
-        <div style="white-space: pre-wrap; font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
-          ${formattedContent}
-        </div>
-      </div>
-      
+      <!-- View Button -->
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 3px 6px rgba(142, 68, 173, 0.2);">
-          View in Memorix App
+        <a href="${viewUrl}" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+          View Full Memory
         </a>
       </div>
+      
+      <p>This memory has been preserved by Memorix and is now unlocked for you to experience.</p>
       <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
         <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
         <p>Our address: memorix.fun</p>
@@ -415,189 +409,3 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
     html: html
   });
 }
-
-/**
- * Send a notification email when a user's role is changed by an admin
- * @param {string} email - User's email address
- * @param {string} name - User's name
- * @param {string} newRole - The new role assigned to the user
- * @returns {Promise<Object>} - Email send result
- */
-async function sendRoleChangeEmail(email, name, newRole) {
-  // Format role for display
-  let formattedRole = newRole;
-  if (newRole === 'admin') {
-    formattedRole = 'Administrator';
-  } else if (newRole === 'moderator') {
-    formattedRole = 'Moderator';
-  } else if (newRole === 'content_curator') {
-    formattedRole = 'Content Curator';
-  } else {
-    formattedRole = 'Regular User';
-  }
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">Your Account Role Has Changed</h2>
-      <p>Hello ${name},</p>
-      <p>We're writing to inform you that your role on Memorix has been updated by an administrator.</p>
-      <div style="background-color: #f9f0ff; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-        <p style="font-size: 16px; margin: 0;">
-          Your new role is: <strong>${formattedRole}</strong>
-        </p>
-      </div>
-      
-      <p>This change may affect your permissions and access within the system. Please log in to your account to see what new features and capabilities are now available to you.</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/login" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Go to Login
-        </a>
-      </div>
-      
-      <p>If you have any questions about your new role or need assistance, please contact our support team.</p>
-      
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: 'Your Memorix Account Role Has Been Updated',
-    html: html
-  });
-}
-
-/**
- * Send a notification email when a user's email is manually verified by an admin
- * @param {string} email - User's email address
- * @param {string} name - User's name
- * @returns {Promise<Object>} - Email send result
- */
-async function sendAdminVerificationEmail(email, name) {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">Your Email Has Been Verified</h2>
-      <p>Hello ${name},</p>
-      <p>We're pleased to inform you that an administrator has manually verified your email address.</p>
-      <div style="background-color: #f9f0ff; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-        <p style="font-size: 16px; margin: 0;">
-          Your account is now fully activated
-        </p>
-      </div>
-      
-      <p>You can now use all the features of Memorix without any restrictions.</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/login" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Go to Login
-        </a>
-      </div>
-      
-      <p>Welcome to the Memorix community! We're excited to have you with us.</p>
-      
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: 'Your Memorix Account Has Been Verified',
-    html: html
-  });
-}
-
-/**
- * Send a notification email when a user receives a gift subscription from an admin
- * @param {string} email - User's email address
- * @param {string} name - User's name
- * @param {string} subscriptionType - Type of subscription gifted (premium/vip/lifetime)
- * @param {number} duration - Duration of the subscription in months
- * @param {string} message - Optional custom message from admin
- * @returns {Promise<Object>} - Email send result
- */
-async function sendGiftSubscriptionEmail(email, name, subscriptionType, duration, message) {
-  // Format subscription type for display
-  let formattedType = 'Premium';
-  if (subscriptionType === 'vip' || subscriptionType === 'lifetime') {
-    formattedType = 'Lifetime';
-  }
-
-  // Format duration text
-  const durationText = formattedType === 'Lifetime' ? 
-    'unlimited access forever' : 
-    `${duration} month${duration > 1 ? 's' : ''} of premium access`;
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${config.frontend.url}/logo.png" alt="Memorix Logo" style="max-width: 150px;">
-      </div>
-      <h2 style="color: #8E44AD; text-align: center;">You've Received a Gift Subscription!</h2>
-      <p>Hello ${name},</p>
-      <p>Great news! An administrator has gifted you with a special subscription to Memorix.</p>
-      
-      <div style="background-color: #f9f0ff; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">
-        <p style="font-size: 18px; margin: 10px 0; font-weight: bold;">
-          ${formattedType} Subscription
-        </p>
-        <p style="font-size: 16px; margin: 10px 0;">
-          You now have ${durationText}
-        </p>
-      </div>
-      
-      ${message ? `<p><strong>Message from Admin:</strong> "${message}"</p>` : ''}
-      
-      <p>With your upgraded subscription, you can enjoy:</p>
-      <ul>
-        <li>Create unlimited time capsules</li>
-        <li>Access to premium features and themes</li>
-        <li>Priority support from our team</li>
-        <li>Enhanced media storage options</li>
-      </ul>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${config.frontend.url}/dashboard" style="background-color: #8E44AD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Go to Dashboard
-        </a>
-      </div>
-      
-      <p>We hope you enjoy your enhanced Memorix experience!</p>
-      
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Memorix. All rights reserved.</p>
-        <p>Our address: memorix.fun</p>
-      </div>
-    </div>
-  `;
-  
-  return sendEmail({
-    to: email,
-    subject: 'You\'ve Received a Gift Subscription to Memorix',
-    html: html
-  });
-}
-
-module.exports = {
-  sendEmail,
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-  sendWelcomeEmail,
-  sendCapsuleInvitation,
-  sendCapsuleReleasedNotification,
-  sendRoleChangeEmail,
-  sendAdminVerificationEmail,
-  sendGiftSubscriptionEmail
-};
