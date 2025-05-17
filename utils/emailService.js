@@ -409,3 +409,13 @@ async function sendCapsuleReleasedNotification(email, subject, capsuleTitle, cre
     html: html
   });
 }
+
+// Export all email functions
+module.exports = {
+  sendEmail,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendCapsuleInvitation,
+  sendWelcomeEmail,
+  sendCapsuleReleasedNotification
+};
