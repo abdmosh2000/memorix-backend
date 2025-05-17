@@ -1,6 +1,7 @@
 const Capsule = require('../models/Capsule');
 const User = require('../models/User');
 const encryption = require('../utils/encryption');
+const emailService = require('../utils/emailService');
 
 // @desc    Create a new capsule
 // @route   POST /api/capsules
@@ -95,7 +96,6 @@ const createCapsule = async (req, res) => {
 
     // Send email notifications to recipients
     if (formattedRecipients && formattedRecipients.length > 0) {
-      const emailService = require('../utils/emailService');
       emailService.sendCapsuleInvitation(
         formattedRecipients.map(r => r.email), 
         capsule._id, 
